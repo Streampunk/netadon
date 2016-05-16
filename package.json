@@ -1,0 +1,28 @@
+{
+  "name": "netadon",
+  "version": "0.0.1",
+  "description": "Optimised UDP networking addon",
+  "main": "index.js",
+  "scripts": {
+    "install": "node-gyp rebuild",
+    "test": "tape test/*.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Streampunk/netadon.git"
+  },
+  "dependencies": {
+    "bindings": "^1.2.1",
+    "nan": "^2.2.0"
+  },
+  "gypfile": true,
+  "devDependencies": {
+    "tape": "^4.4.0"
+  },
+  "author": "Christine S. MacNeill",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/Streampunk/netadon/issues"
+  },
+  "homepage": "https://github.com/Streampunk/netadon#readme"
+}

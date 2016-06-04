@@ -16,6 +16,7 @@
 'use strict';
 var netAdon = require('bindings')('./Release/netadon');
 
+var dgram = require('dgram');
 const util = require('util');
 const EventEmitter = require('events');
 
@@ -105,7 +106,7 @@ UdpPort.prototype.bind = function(port, address, cb) {
       else if (data)
         this.emit('message', data);
       else if ((typeof port === 'number') && (typeof addr === 'string')) {
-        this.address = { port: port, address: addr };
+        this.bindAddress = { port: port, address: addr };
         this.emit('listening');
         if (typeof bindCb === 'function') {
           bindCb(null);
@@ -123,7 +124,7 @@ UdpPort.prototype.bind = function(port, address, cb) {
 }
 
 UdpPort.prototype.address = function() {
-  return this.address;
+  return this.bindAddress;
 }
 
 UdpPort.prototype.send = function(data, offset, length, port, address, cb) {
@@ -144,13 +145,18 @@ UdpPort.prototype.close = function(cb) {
   try {
     this.udpPortAdon.close();
   } catch (err) {
+    console.log(err);
     this.emit('error', err);
   } 
 }
 
 function netadon() {}
 netadon.createSocket = function (ipType, packetSize, recvMinPackets, sendMinPackets, cb) {
-  return new UdpPort (ipType, packetSize, recvMinPackets, sendMinPackets, cb);
+  try {
+    return new UdpPort (ipType, packetSize, recvMinPackets, sendMinPackets, cb);
+  } catch (err) {
+    return dgram.createSocket(ipType, cb);
+  }
 } 
 
 module.exports = netadon;

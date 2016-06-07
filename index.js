@@ -20,19 +20,36 @@ var dgram = require('dgram');
 const util = require('util');
 const EventEmitter = require('events');
 
-function UdpPort(options, packetSize, recvMinPackets, sendMinPackets, cb) {
+function UdpPort(options, cb, packetSize, recvMinPackets, sendMinPackets) {
+  var curArg = 0;
   var optionsObj = { type:'udp4', reuseAddr:false };
-  if (typeof arguments[0] === 'string') {
-    optionsObj.type = arguments[0];
-  } else if (typeof arguments[0] === 'object') {
-    optionsObj = arguments[0];
+  if (typeof arguments[curArg] === 'string') {
+    optionsObj.type = arguments[curArg];
+  } else if (typeof arguments[curArg] === 'object') {
+    optionsObj = arguments[curArg];
+  }
+  ++curArg;
+
+  var rioCb;
+  var rioPacketSize = 1500;
+  var rioRecvMinPackets = 16384;
+  var rioSendMinPackets = 16384;
+
+  if (typeof arguments[curArg] === 'function') {
+    rioCb = arguments[curArg];
+    ++curArg;
+  }
+  if (typeof arguments[curArg] === 'number') {
+    rioPacketSize = arguments[curArg++];
+    rioRecvMinPackets = arguments[curArg++];
+    rioSendMinPackets = arguments[curArg++];
   }
 
-  this.udpPortAdon = new netAdon.UdpPort(optionsObj, packetSize, recvMinPackets, sendMinPackets, function() {
+  this.udpPortAdon = new netAdon.UdpPort(optionsObj, rioPacketSize, rioRecvMinPackets, rioSendMinPackets, function() {
     console.log('UdpPort exiting');
   });
-  if (typeof cb === 'function')
-    this.on('message', cb);
+  if (typeof rioCb === 'function')
+    this.on('message', rioCb);
 
   EventEmitter.call(this);
 }
@@ -158,9 +175,9 @@ UdpPort.prototype.close = function(cb) {
 }
 
 function netadon() {}
-netadon.createSocket = function (options, packetSize, recvMinPackets, sendMinPackets, cb) {
+netadon.createSocket = function (options, cb, packetSize, recvMinPackets, sendMinPackets) {
   try {
-    return new UdpPort (options, packetSize, recvMinPackets, sendMinPackets, cb);
+    return new UdpPort (options, cb, packetSize, recvMinPackets, sendMinPackets);
   } catch (err) {
     return dgram.createSocket(options, cb);
   }

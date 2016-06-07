@@ -49,11 +49,11 @@ public:
 };
 
 
-UdpPort::UdpPort(std::string ipType, uint32_t packetSize, uint32_t recvMinPackets, uint32_t sendMinPackets, Nan::Callback *callback) 
+UdpPort::UdpPort(std::string ipType, bool reuseAddr, uint32_t packetSize, uint32_t recvMinPackets, uint32_t sendMinPackets, Nan::Callback *callback) 
   : mWorker(new MyWorker(callback)) {
   AsyncQueueWorker(mWorker);
   try {
-    mNetwork = NetworkFactory::createNetwork(ipType, packetSize, recvMinPackets, sendMinPackets);
+    mNetwork = NetworkFactory::createNetwork(ipType, reuseAddr, packetSize, recvMinPackets, sendMinPackets);
   } catch (std::runtime_error& err) {
     Nan::ThrowError(Nan::New(err.what()).ToLocalChecked());
   }

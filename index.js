@@ -20,8 +20,15 @@ var dgram = require('dgram');
 const util = require('util');
 const EventEmitter = require('events');
 
-function UdpPort(ipType, packetSize, recvMinPackets, sendMinPackets, cb) {
-  this.udpPortAdon = new netAdon.UdpPort(ipType, packetSize, recvMinPackets, sendMinPackets, function() {
+function UdpPort(options, packetSize, recvMinPackets, sendMinPackets, cb) {
+  var optionsObj = { type:'udp4', reuseAddr:false };
+  if (typeof arguments[0] === 'string') {
+    optionsObj.type = arguments[0];
+  } else if (typeof arguments[0] === 'object') {
+    optionsObj = arguments[0];
+  }
+
+  this.udpPortAdon = new netAdon.UdpPort(optionsObj, packetSize, recvMinPackets, sendMinPackets, function() {
     console.log('UdpPort exiting');
   });
   if (typeof cb === 'function')
@@ -151,11 +158,11 @@ UdpPort.prototype.close = function(cb) {
 }
 
 function netadon() {}
-netadon.createSocket = function (ipType, packetSize, recvMinPackets, sendMinPackets, cb) {
+netadon.createSocket = function (options, packetSize, recvMinPackets, sendMinPackets, cb) {
   try {
-    return new UdpPort (ipType, packetSize, recvMinPackets, sendMinPackets, cb);
+    return new UdpPort (options, packetSize, recvMinPackets, sendMinPackets, cb);
   } catch (err) {
-    return dgram.createSocket(ipType, cb);
+    return dgram.createSocket(options, cb);
   }
 } 
 

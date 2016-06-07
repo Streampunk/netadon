@@ -27,7 +27,7 @@ enum OP_TYPE { OP_NONE = 0,	OP_RECV = 1, OP_SEND	= 2 };
 
 class RioNetwork : public iNetworkDriver {
 public:
-  RioNetwork(std::string ipType, uint32_t packetSize, uint32_t recvMinPackets, uint32_t sendMinPackets);
+  RioNetwork(std::string ipType, bool reuseAddr, uint32_t packetSize, uint32_t recvMinPackets, uint32_t sendMinPackets);
   ~RioNetwork();
 
   void AddMembership(std::string mAddrStr, std::string uAddrStr);
@@ -44,6 +44,7 @@ protected:
   bool processCompletions(std::string &errStr, std::shared_ptr<Memory> &dstBuf);
   
 private:
+  bool mReuseAddr;
   uint32_t mPacketSize;
   uint32_t mRecvNumBufs;
   uint32_t mSendNumBufs;

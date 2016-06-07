@@ -64,7 +64,7 @@ private:
 };
 
 
-RioNetwork::RioNetwork(std::string ipType, uint32_t packetSize, uint32_t recvMinPackets, uint32_t sendMinPackets)
+RioNetwork::RioNetwork(std::string ipType, bool reuseAddr, uint32_t packetSize, uint32_t recvMinPackets, uint32_t sendMinPackets)
   : mPacketSize(packetSize), 
     mRecvNumBufs(CalcNumBuffers(packetSize, recvMinPackets)), 
     mSendNumBufs(CalcNumBuffers(packetSize, sendMinPackets)), 
@@ -186,6 +186,9 @@ void RioNetwork::SetMulticastLoopback(bool flag) {
 void RioNetwork::Bind(uint32_t &port, std::string &addrStr) {
   try {
     InitialiseRcvs();
+
+    if (SOCKET_ERROR == setsockopt(mSocket, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<char *>(&mReuseAddr), sizeof(mReuseAddr)))
+      throw RioException("setsockopt reuse address", WSAGetLastError());
 
     SOCKADDR_IN addr;
     addr.sin_family = AF_INET;

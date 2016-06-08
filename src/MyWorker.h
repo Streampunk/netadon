@@ -131,6 +131,10 @@ private:
           mProgressCallback->Call(2, argv);
         }
       }
+      else if (wp->mProcessData && wp->mProcessData->sendCallback()) {
+        Local<Value> argv[] = { Nan::Null() };
+        wp->mProcessData->sendCallback()->Call(1, argv);
+      }
       else if (!wp->mAddrStr.empty() && mProgressCallback) {
         Local<Value> argv[] = { Nan::Null(), Nan::Null(), Nan::New(wp->mPort), Nan::New(wp->mAddrStr).ToLocalChecked() };
         mProgressCallback->Call(4, argv);

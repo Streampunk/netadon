@@ -33,10 +33,10 @@ public:
   virtual void SetBroadcast(bool flag) = 0;
   virtual void SetMulticastLoopback(bool flag) = 0;
   virtual void Bind(uint32_t &port, std::string &addrStr) = 0;
-  virtual void Send(std::shared_ptr<Memory> data, uint32_t port, std::string addrStr) = 0;
+  virtual void Send(std::shared_ptr<Memory> data, uint32_t port, std::string addrStr, Nan::Callback *callback) = 0;
   virtual void Close() = 0;
 
-  virtual bool processCompletions(std::string &errStr, std::shared_ptr<Memory> &dstBuf) = 0;
+  virtual bool processCompletions(std::string &errStr, std::shared_ptr<Memory> &dstBuf, Nan::Callback *&sendCallback) = 0;
   
 private:
 };

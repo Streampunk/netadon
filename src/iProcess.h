@@ -27,6 +27,7 @@ class iProcessData {
 public:
   virtual ~iProcessData() {}
   virtual std::shared_ptr<Memory> dstBuf() const = 0;
+  virtual Nan::Callback *sendCallback() const = 0;
 };
 
 class iProcess {

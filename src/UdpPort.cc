@@ -26,14 +26,18 @@ namespace streampunk {
 
 class UdpPortProcessData : public iProcessData {
 public:
-  UdpPortProcessData() {}
+  UdpPortProcessData() : mSendCallback(NULL) {}
   ~UdpPortProcessData() {}
 
   void setDstBuf(std::shared_ptr<Memory> buf) { mDstBuf = buf; }  
+  void setSendCallback(Nan::Callback *sendCallback) { mSendCallback = sendCallback; }  
+
   std::shared_ptr<Memory> dstBuf() const { return mDstBuf; }
+  Nan::Callback *sendCallback() const { return mSendCallback; }
 
 private:
   std::shared_ptr<Memory> mDstBuf;
+  Nan::Callback *mSendCallback;
 };
 
 class UdpPortBindProcessData : public iProcessData {
@@ -43,6 +47,7 @@ public:
   ~UdpPortBindProcessData() {}
 
   std::shared_ptr<Memory> dstBuf() const { return std::shared_ptr<Memory>(); }
+  Nan::Callback *sendCallback() const { return NULL; }
 
   uint32_t mPort;
   std::string mAddrStr;
@@ -63,10 +68,12 @@ UdpPort::~UdpPort() {}
 // iProcess
 uint32_t UdpPort::doProcess (std::shared_ptr<iProcessData> processData, std::string &errStr, uint32_t &port, std::string &addrStr) {
   std::shared_ptr<Memory> dstBuf;
+  Nan::Callback *sendCallback = NULL;
   std::shared_ptr<UdpPortProcessData> upd = std::dynamic_pointer_cast<UdpPortProcessData>(processData);
   if (upd) {
-    bool close = mNetwork->processCompletions(errStr, dstBuf);
+    bool close = mNetwork->processCompletions(errStr, dstBuf, sendCallback);
     upd->setDstBuf(dstBuf);
+    upd->setSendCallback(sendCallback);
 
     if (close)
       mWorker->quit();
@@ -194,7 +201,7 @@ NAN_METHOD(UdpPort::Bind) {
 }
 
 NAN_METHOD(UdpPort::Send) {
-  if (info.Length() != 5)
+  if (info.Length() != 6)
     return Nan::ThrowError("UdpPort Send expects 5 arguments");
   if (!info[0]->IsObject())
     return Nan::ThrowError("UdpPort Send requires a valid buffer as the first parameter");
@@ -204,7 +211,9 @@ NAN_METHOD(UdpPort::Send) {
   uint32_t length = Nan::To<uint32_t>(info[2]).FromJust();
   uint32_t port = Nan::To<uint32_t>(info[3]).FromJust();
   String::Utf8Value addrStr(Nan::To<String>(info[4]).ToLocalChecked());
-
+  Nan::Callback *callback = NULL;
+  if (info[5]->IsFunction())
+    callback = new Nan::Callback(Local<Function>::Cast(info[5]));
   uint32_t buffLen = (uint32_t)node::Buffer::Length(buf);
   if (offset + length > buffLen)
     return Nan::ThrowError("UdpPort Send - out of range offset/length");
@@ -212,7 +221,7 @@ NAN_METHOD(UdpPort::Send) {
 
   UdpPort *obj = Nan::ObjectWrap::Unwrap<UdpPort>(info.Holder());
   try {
-    obj->mNetwork->Send(Memory::makeNew(sendBuf, length), port, *addrStr);
+    obj->mNetwork->Send(Memory::makeNew(sendBuf, length), port, *addrStr, callback);
   } catch (std::runtime_error& err) {
     return Nan::ThrowError(Nan::New(err.what()).ToLocalChecked());
   }

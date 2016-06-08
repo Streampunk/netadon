@@ -153,7 +153,7 @@ UdpPort.prototype.address = function() {
 
 UdpPort.prototype.send = function(data, offset, length, port, address, cb) {
   try {
-    this.udpPortAdon.send(data, offset, length, port, address);
+    this.udpPortAdon.send(data, offset, length, port, address, cb);
   } catch (err) {
     if (typeof cb === 'function')
       cb(err);

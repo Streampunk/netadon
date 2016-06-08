@@ -37,11 +37,11 @@ public:
   void SetBroadcast(bool flag);
   void SetMulticastLoopback(bool flag);
   void Bind(uint32_t &port, std::string &addrStr);
-  void Send(std::shared_ptr<Memory> data, uint32_t port, std::string addrStr);
+  void Send(std::shared_ptr<Memory> data, uint32_t port, std::string addrStr, Nan::Callback *callback);
   void Close();
 
 protected:
-  bool processCompletions(std::string &errStr, std::shared_ptr<Memory> &dstBuf);
+  bool processCompletions(std::string &errStr, std::shared_ptr<Memory> &dstBuf, Nan::Callback *&sendCallback);
   
 private:
   bool mReuseAddr;

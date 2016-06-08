@@ -41,7 +41,7 @@ public:
   void Close();
 
 protected:
-  bool processCompletions(std::string &errStr, std::shared_ptr<Memory> &dstBuf, Nan::Callback *&sendCallback);
+  bool processCompletions(std::string &errStr, std::shared_ptr<Memory> &dstBuf, std::vector<Nan::Callback *>&sendCallbacks);
   
 private:
   bool mReuseAddr;

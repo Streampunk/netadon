@@ -266,7 +266,7 @@ void RioNetwork::Close() {
   }
 }
 
-bool RioNetwork::processCompletions(std::string &errStr, std::shared_ptr<Memory> &dstBuf, Nan::Callback *&sendCallback) {
+bool RioNetwork::processCompletions(std::string &errStr, std::shared_ptr<Memory> &dstBuf, std::vector<Nan::Callback *>&sendCallbacks) {
   const DWORD RIO_MAX_RESULTS = 1000;
 
   RIORESULT results[RIO_MAX_RESULTS];
@@ -312,7 +312,7 @@ bool RioNetwork::processCompletions(std::string &errStr, std::shared_ptr<Memory>
         recvResults.push_back(std::make_pair(numBytes, pBuf));
       }
       else if (pBuf && (OP_SEND == pBuf->OpType)) {
-        sendCallback = pBuf->SendCallback;
+        sendCallbacks.push_back(pBuf->SendCallback);
       }
     }
     else {

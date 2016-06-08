@@ -26,18 +26,18 @@ namespace streampunk {
 
 class UdpPortProcessData : public iProcessData {
 public:
-  UdpPortProcessData() : mSendCallback(NULL) {}
+  UdpPortProcessData() {}
   ~UdpPortProcessData() {}
 
   void setDstBuf(std::shared_ptr<Memory> buf) { mDstBuf = buf; }  
-  void setSendCallback(Nan::Callback *sendCallback) { mSendCallback = sendCallback; }  
+  void setSendCallbacks(const std::vector<Nan::Callback *> sendCallbacks) { mSendCallbacks = sendCallbacks; }  
 
   std::shared_ptr<Memory> dstBuf() const { return mDstBuf; }
-  Nan::Callback *sendCallback() const { return mSendCallback; }
+  std::vector<Nan::Callback *> sendCallbacks() const { return mSendCallbacks; }
 
 private:
   std::shared_ptr<Memory> mDstBuf;
-  Nan::Callback *mSendCallback;
+  std::vector<Nan::Callback *> mSendCallbacks;
 };
 
 class UdpPortBindProcessData : public iProcessData {
@@ -47,7 +47,7 @@ public:
   ~UdpPortBindProcessData() {}
 
   std::shared_ptr<Memory> dstBuf() const { return std::shared_ptr<Memory>(); }
-  Nan::Callback *sendCallback() const { return NULL; }
+  std::vector<Nan::Callback *> sendCallbacks() const { return std::vector<Nan::Callback *>(); }
 
   uint32_t mPort;
   std::string mAddrStr;
@@ -68,12 +68,12 @@ UdpPort::~UdpPort() {}
 // iProcess
 uint32_t UdpPort::doProcess (std::shared_ptr<iProcessData> processData, std::string &errStr, uint32_t &port, std::string &addrStr) {
   std::shared_ptr<Memory> dstBuf;
-  Nan::Callback *sendCallback = NULL;
+  std::vector<Nan::Callback *> sendCallbacks;
   std::shared_ptr<UdpPortProcessData> upd = std::dynamic_pointer_cast<UdpPortProcessData>(processData);
   if (upd) {
-    bool close = mNetwork->processCompletions(errStr, dstBuf, sendCallback);
+    bool close = mNetwork->processCompletions(errStr, dstBuf, sendCallbacks);
     upd->setDstBuf(dstBuf);
-    upd->setSendCallback(sendCallback);
+    upd->setSendCallbacks(sendCallbacks);
 
     if (close)
       mWorker->quit();

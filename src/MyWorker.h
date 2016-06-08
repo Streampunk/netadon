@@ -118,26 +118,34 @@ private:
     while (mDoneQueue.size() != 0)
     {
       std::shared_ptr<WorkParams> wp = mDoneQueue.dequeue();
+      
       if (!wp->mErrStr.empty() && mProgressCallback) {
         Local<Value> argv[] = { Nan::New(wp->mErrStr.c_str()).ToLocalChecked() };
         mProgressCallback->Call(1, argv);
       }
-      else if (wp->mProcessData && wp->mProcessData->dstBuf()) {
-        std::shared_ptr<Memory> resultMem = wp->mProcessData->dstBuf();
-        outstandingAllocs.insert(make_pair((char*)resultMem->buf(), resultMem));
-        Nan::MaybeLocal<v8::Object> maybeBuf = Nan::NewBuffer((char*)resultMem->buf(), resultMem->numBytes(), freeAllocCb, 0);
-        if (mProgressCallback) {
-          Local<Value> argv[] = { Nan::Null(), maybeBuf.ToLocalChecked() };
-          mProgressCallback->Call(2, argv);
-        }
-      }
-      else if (wp->mProcessData && wp->mProcessData->sendCallback()) {
-        Local<Value> argv[] = { Nan::Null() };
-        wp->mProcessData->sendCallback()->Call(1, argv);
-      }
       else if (!wp->mAddrStr.empty() && mProgressCallback) {
         Local<Value> argv[] = { Nan::Null(), Nan::Null(), Nan::New(wp->mPort), Nan::New(wp->mAddrStr).ToLocalChecked() };
         mProgressCallback->Call(4, argv);
+      }
+      else {
+        if (wp->mProcessData && wp->mProcessData->dstBuf()) {
+          std::shared_ptr<Memory> resultMem = wp->mProcessData->dstBuf();
+          outstandingAllocs.insert(make_pair((char*)resultMem->buf(), resultMem));
+          Nan::MaybeLocal<v8::Object> maybeBuf = Nan::NewBuffer((char*)resultMem->buf(), resultMem->numBytes(), freeAllocCb, 0);
+          if (mProgressCallback) {
+            Local<Value> argv[] = { Nan::Null(), maybeBuf.ToLocalChecked() };
+            mProgressCallback->Call(2, argv);
+          }
+        }
+        
+        if (wp->mProcessData && !wp->mProcessData->sendCallbacks().empty()) {
+          std::vector<Nan::Callback *> sCbs = wp->mProcessData->sendCallbacks();
+          Local<Value> argv[] = { Nan::Null() };
+          for (std::vector<Nan::Callback *>::iterator it = sCbs.begin(); it != sCbs.end(); ++it) {
+            (*it)->Call(1, argv);
+            delete *it;
+          }
+        }
       } 
 
       if (!wp->mProcess && !mActive) {

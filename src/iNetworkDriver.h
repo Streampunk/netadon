@@ -36,7 +36,7 @@ public:
   virtual void Send(std::shared_ptr<Memory> data, uint32_t port, std::string addrStr, Nan::Callback *callback) = 0;
   virtual void Close() = 0;
 
-  virtual bool processCompletions(std::string &errStr, std::shared_ptr<Memory> &dstBuf, Nan::Callback *&sendCallback) = 0;
+  virtual bool processCompletions(std::string &errStr, std::shared_ptr<Memory> &dstBuf, std::vector<Nan::Callback *>&sendCallbacks) = 0;
   
 private:
 };

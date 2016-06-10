@@ -21,6 +21,7 @@
 namespace streampunk {
 
 class Memory;
+typedef std::vector<std::shared_ptr<Memory> > tBufVec;
 
 class iNetworkDriver {
 public:
@@ -33,10 +34,11 @@ public:
   virtual void SetBroadcast(bool flag) = 0;
   virtual void SetMulticastLoopback(bool flag) = 0;
   virtual void Bind(uint32_t &port, std::string &addrStr) = 0;
-  virtual void Send(std::shared_ptr<Memory> data, uint32_t port, std::string addrStr, Nan::Callback *callback) = 0;
+  virtual void Send(const tBufVec& bufVec, uint32_t port, std::string addrStr) = 0;
+  virtual void CommitSend() = 0;
   virtual void Close() = 0;
 
-  virtual bool processCompletions(std::string &errStr, std::shared_ptr<Memory> &dstBuf, std::vector<Nan::Callback *>&sendCallbacks) = 0;
+  virtual bool processCompletions(std::string &errStr, std::shared_ptr<Memory> &dstBuf) = 0;
   
 private:
 };

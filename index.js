@@ -16,6 +16,9 @@
 'use strict';
 var netAdon = require('bindings')('./Release/netadon');
 
+//var SegfaultHandler = require('../node-segfault-handler');
+//SegfaultHandler.registerHandler("crash.log");
+
 var dgram = require('dgram');
 const util = require('util');
 const EventEmitter = require('events');
@@ -56,7 +59,11 @@ function UdpPort(options, cb, packetSize, recvMinPackets, sendMinPackets) {
 
 util.inherits(UdpPort, EventEmitter);
 
-UdpPort.prototype.addMembership = function(maddr, uaddr) {
+UdpPort.prototype.addMembership = function(maddr, optUaddr) {
+  var uaddr = '';
+  if (typeof arguments[1] === 'string')
+    uaddr = optUaddr;
+
   try {
     this.udpPortAdon.addMembership(maddr, uaddr);
   } catch (err) {
@@ -64,7 +71,11 @@ UdpPort.prototype.addMembership = function(maddr, uaddr) {
   }
 }
  
-UdpPort.prototype.dropMembership = function(maddr, uaddr) {
+UdpPort.prototype.dropMembership = function(maddr, optUaddr) {
+  var uaddr = '';
+  if (typeof arguments[1] === 'string')
+    uaddr = optUaddr;
+
   try {
     this.udpPortAdon.dropMembership(maddr, uaddr);
   } catch (err) {
@@ -106,7 +117,7 @@ UdpPort.prototype.setMulticastLoopback = function(flag) {
  
 UdpPort.prototype.bind = function(port, address, cb) {
   var bindPort = 0;
-  var bindAddress = '';
+  var bindAddr = '';
   var bindCb;
   var curArg = 0;
 
@@ -115,7 +126,7 @@ UdpPort.prototype.bind = function(port, address, cb) {
     ++curArg;
   }
   if (typeof arguments[curArg] === 'string') {
-    bindAddress = arguments[curArg];
+    bindAddr = arguments[curArg];
     ++curArg;
   }
   if (typeof arguments[curArg] === 'function') {
@@ -124,20 +135,21 @@ UdpPort.prototype.bind = function(port, address, cb) {
   }
 
   try {
-    this.udpPortAdon.bind(bindPort, bindAddress, function(err, data, port, addr) {
+    this.udpPortAdon.bind(bindPort, bindAddr, function(err, port, addr) {
       if (err)
         this.emit('error', err);
-      else if (data)
-        this.emit('message', data);
-      else if ((typeof port === 'number') && (typeof addr === 'string')) {
+      else {
         this.bindAddress = { port: port, address: addr };
         this.emit('listening');
         if (typeof bindCb === 'function') {
           bindCb(null);
         }
       }
-      else
-        this.emit('close');
+    }.bind(this), function(err, data) {
+      if (err)
+        this.emit('error', err);
+      else if (data)
+        this.emit('message', data);
     }.bind(this));
   } catch (err) {
     if (typeof bindCb === 'function')
@@ -153,7 +165,20 @@ UdpPort.prototype.address = function() {
 
 UdpPort.prototype.send = function(data, offset, length, port, address, cb) {
   try {
-    this.udpPortAdon.send(data, offset, length, port, address, cb);
+    var bufArray;
+    if (Buffer.isBuffer(data)) {
+      bufArray = new Array(1);
+      bufArray[0] = data;
+    }
+    else if (Array.isArray(data))
+      bufArray = data;
+    else 
+      throw ("Expected send buffer not found");
+
+    this.udpPortAdon.send(bufArray, offset, length, port, address, function() {
+      if (typeof cb === 'function')      
+        cb(null);
+    });
   } catch (err) {
     if (typeof cb === 'function')
       cb(err);
@@ -167,9 +192,10 @@ UdpPort.prototype.close = function(cb) {
     this.on('close', cb);
 
   try {
-    this.udpPortAdon.close();
+    this.udpPortAdon.close(function() {
+      this.emit('close');
+    }.bind(this));
   } catch (err) {
-    console.log(err);
     this.emit('error', err);
   } 
 }

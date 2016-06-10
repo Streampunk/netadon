@@ -32,7 +32,8 @@ namespace streampunk {
 static std::map<char*, std::shared_ptr<Memory> > outstandingAllocs;
 static void freeAllocCb(char* data, void* hint) {
   std::map<char*, std::shared_ptr<Memory> >::iterator it = outstandingAllocs.find(data);
-  outstandingAllocs.erase(it);
+  if (it != outstandingAllocs.end())
+    outstandingAllocs.erase(it);
 }
 
 template <class T>
@@ -86,13 +87,13 @@ public:
     return (uint32_t)mWorkQueue.size();
   }
 
-  void doProcess(std::shared_ptr<iProcessData> processData, iProcess *process) {
+  void doProcess(std::shared_ptr<iProcessData> processData, iProcess *process, Nan::Callback *doneCallback) {
     mWorkQueue.enqueue (
-      std::make_shared<WorkParams>(processData, process));
+      std::make_shared<WorkParams>(processData, process, doneCallback));
   }
 
   void quit() {
-    mWorkQueue.enqueue (std::make_shared<WorkParams>(std::shared_ptr<iProcessData>(), (iProcess *)NULL));
+    mWorkQueue.enqueue (std::make_shared<WorkParams>(std::shared_ptr<iProcessData>(), (iProcess *)NULL, (Nan::Callback *)NULL));
   }
 
 private:  
@@ -101,7 +102,7 @@ private:
     while (mActive) {
       std::shared_ptr<WorkParams> wp = mWorkQueue.dequeue();
       if (wp->mProcess)
-        wp->mProcess->doProcess(wp->mProcessData, wp->mErrStr, wp->mPort, wp->mAddrStr);
+        wp->mProcess->doProcess(wp->mProcessData, wp->mErrStr, wp->mDstBuf, wp->mPort, wp->mAddrStr);
       else
         mActive = false;
       mDoneQueue.enqueue(wp);
@@ -120,40 +121,32 @@ private:
       std::shared_ptr<WorkParams> wp = mDoneQueue.dequeue();
       
       if (!wp->mErrStr.empty() && mProgressCallback) {
+        printf("Error: %s\n", wp->mErrStr.c_str());
+        
         Local<Value> argv[] = { Nan::New(wp->mErrStr.c_str()).ToLocalChecked() };
         mProgressCallback->Call(1, argv);
       }
-      else if (!wp->mAddrStr.empty() && mProgressCallback) {
-        Local<Value> argv[] = { Nan::Null(), Nan::Null(), Nan::New(wp->mPort), Nan::New(wp->mAddrStr).ToLocalChecked() };
-        mProgressCallback->Call(4, argv);
-      }
-      else {
-        if (wp->mProcessData && wp->mProcessData->dstBuf()) {
-          std::shared_ptr<Memory> resultMem = wp->mProcessData->dstBuf();
-          outstandingAllocs.insert(make_pair((char*)resultMem->buf(), resultMem));
-          Nan::MaybeLocal<v8::Object> maybeBuf = Nan::NewBuffer((char*)resultMem->buf(), resultMem->numBytes(), freeAllocCb, 0);
-          if (mProgressCallback) {
-            Local<Value> argv[] = { Nan::Null(), maybeBuf.ToLocalChecked() };
-            mProgressCallback->Call(2, argv);
-          }
+      else if (wp->mCallback) {
+        if (!wp->mAddrStr.empty()) {
+          Local<Value> argv[] = { Nan::Null(), Nan::New(wp->mPort), Nan::New(wp->mAddrStr).ToLocalChecked() };
+          wp->mCallback->Call(3, argv);
         }
-        
-        if (wp->mProcessData && !wp->mProcessData->sendCallbacks().empty()) {
-          std::vector<Nan::Callback *> sCbs = wp->mProcessData->sendCallbacks();
+        else {
           Local<Value> argv[] = { Nan::Null() };
-          for (std::vector<Nan::Callback *>::iterator it = sCbs.begin(); it != sCbs.end(); ++it) {
-            (*it)->Call(1, argv);
-            delete *it;
-          }
+          wp->mCallback->Call(1, argv);
         }
-      } 
-
-      if (!wp->mProcess && !mActive) {
+      }
+      else if (wp->mDstBuf) {
+        std::shared_ptr<Memory> resultMem = wp->mDstBuf;
+        outstandingAllocs.insert(make_pair((char*)resultMem->buf(), resultMem));
+        Nan::MaybeLocal<v8::Object> maybeBuf = Nan::NewBuffer((char*)resultMem->buf(), resultMem->numBytes(), freeAllocCb, 0);
         if (mProgressCallback) {
-          Local<Value> argv[] = { Nan::Null(), Nan::Null() };
+          Local<Value> argv[] = { Nan::Null(), maybeBuf.ToLocalChecked() };
           mProgressCallback->Call(2, argv);
         }
+      }
 
+      if (!wp->mProcess && !mActive) {
         // notify the thread to exit
         std::unique_lock<std::mutex> lk(mMtx);
         mCv.notify_one();
@@ -169,13 +162,15 @@ private:
   bool mActive;
   Nan::Callback *mProgressCallback;
   struct WorkParams {
-    WorkParams(std::shared_ptr<iProcessData> processData, iProcess *process)
-      : mProcessData(processData), mProcess(process) {}
-    ~WorkParams() {}
+    WorkParams(std::shared_ptr<iProcessData> processData, iProcess *process, Nan::Callback *callback)
+      : mProcessData(processData), mProcess(process), mCallback(callback), mPort(0) {}
+    ~WorkParams() { delete mCallback; }
 
     std::shared_ptr<iProcessData> mProcessData;
     iProcess *mProcess;
+    Nan::Callback *mCallback;
     std::string mErrStr;
+    std::shared_ptr<Memory> mDstBuf; 
     uint32_t mPort;
     std::string mAddrStr;
   };

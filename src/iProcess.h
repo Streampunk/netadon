@@ -21,19 +21,17 @@
 namespace streampunk {
 
 class Memory;
-typedef std::vector<std::pair<const uint8_t*, uint32_t> > tBufVec;
 
 class iProcessData {
 public:
   virtual ~iProcessData() {}
-  virtual std::shared_ptr<Memory> dstBuf() const = 0;
-  virtual std::vector<Nan::Callback *> sendCallbacks() const = 0;
 };
 
 class iProcess {
 public:
   virtual ~iProcess() {}  
-  virtual uint32_t doProcess (std::shared_ptr<iProcessData> processData, std::string &errStr, uint32_t &port, std::string &addrStr) = 0;
+  virtual void doProcess (std::shared_ptr<iProcessData> processData, std::string &errStr, 
+                          std::shared_ptr<Memory> &dstBuf, uint32_t &port, std::string &addrStr) = 0;
 };
 
 } // namespace streampunk

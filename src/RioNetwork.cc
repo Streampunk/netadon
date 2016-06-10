@@ -28,12 +28,10 @@
 namespace streampunk {
 
 static const uint32_t addrPktSize = sizeof(SOCKADDR_INET);
-static uint32_t slowStart = 2;
 
 struct EXTENDED_RIO_BUF : public RIO_BUF
 {
 	OP_TYPE OpType;
-  Nan::Callback *SendCallback;
 };
 
 std::function<uint32_t(uint32_t,uint32_t)> gcd = [&](uint32_t m, uint32_t n) {
@@ -118,7 +116,10 @@ void RioNetwork::AddMembership(std::string mAddrStr, std::string uAddrStr) {
     in_addr maddr;
     inet_pton(AF_INET, mAddrStr.c_str(), (void*)&maddr.s_addr);
     in_addr uaddr;
-    inet_pton(AF_INET, uAddrStr.c_str(), (void*)&uaddr.s_addr);
+    if (uAddrStr.empty())
+      uaddr.s_addr = INADDR_ANY;
+    else
+      inet_pton(AF_INET, uAddrStr.c_str(), (void*)&uaddr.s_addr);
 
     IP_MREQ mcast;
     mcast.imr_multiaddr = maddr;
@@ -135,7 +136,10 @@ void RioNetwork::DropMembership(std::string mAddrStr, std::string uAddrStr) {
     in_addr maddr;
     inet_pton(AF_INET, mAddrStr.c_str(), (void*)&maddr.s_addr);
     in_addr uaddr;
-    inet_pton(AF_INET, uAddrStr.c_str(), (void*)&uaddr.s_addr);
+    if (uAddrStr.empty())
+      uaddr.s_addr = INADDR_ANY;
+    else
+      inet_pton(AF_INET, uAddrStr.c_str(), (void*)&uaddr.s_addr);
 
     IP_MREQ mcast;
     mcast.imr_multiaddr = maddr;
@@ -145,7 +149,6 @@ void RioNetwork::DropMembership(std::string mAddrStr, std::string uAddrStr) {
   } catch (RioException& err) {
     throw std::runtime_error(err.what());
   }
-  
 }
 
 void RioNetwork::SetTTL(uint32_t ttl) {
@@ -216,7 +219,7 @@ void RioNetwork::Bind(uint32_t &port, std::string &addrStr) {
   }
 }
 
-void RioNetwork::Send(std::shared_ptr<Memory> data, uint32_t port, std::string addrStr, Nan::Callback *callback) {
+void RioNetwork::Send(const tBufVec& bufVec, uint32_t port, std::string addrStr) {
   SOCKADDR_IN addr;
   addr.sin_family = AF_INET;
   inet_pton(AF_INET, addrStr.c_str(), (void*)&addr.sin_addr);
@@ -228,30 +231,27 @@ void RioNetwork::Send(std::shared_ptr<Memory> data, uint32_t port, std::string a
   if (memcpy_s(mAddrBuff->buf() + pAddrBuf->Offset, addrPktSize, &addr.sin_family, sizeof(SOCKADDR_IN)))
     throw std::runtime_error("memcpy_s failed");
   
-  uint32_t dataBytes = data->numBytes();
-  uint8_t *srcBuf = data->buf();
   try {
-    while (dataBytes) {
+    for (tBufVec::const_iterator it = bufVec.begin(); it != bufVec.end(); ++it) {
       uint32_t index = InterlockedIncrement(&mSendIndex);
       EXTENDED_RIO_BUF *pBuf = &mSendBufs[index%mSendNumBufs];
-      uint32_t thisBytes = std::min<uint32_t>(dataBytes, mPacketSize);
-      if (memcpy_s(mSendBuff->buf() + pBuf->Offset, mPacketSize, srcBuf, thisBytes))
+      uint32_t thisBytes = std::min<uint32_t>((*it)->numBytes(), mPacketSize);
+      if (memcpy_s(mSendBuff->buf() + pBuf->Offset, mPacketSize, (*it)->buf(), thisBytes))
         throw std::runtime_error("memcpy_s failed");
       pBuf->Length = thisBytes;
-      pBuf->SendCallback = callback;
       
-      if (!mRio.RIOSendEx(mRQ, pBuf, 1, NULL, pAddrBuf, NULL, NULL, 0, pBuf))
+      if (!mRio.RIOSendEx(mRQ, pBuf, 1, NULL, pAddrBuf, NULL, NULL, RIO_MSG_DEFER, pBuf))
         throw RioException("RIOSendEx", WSAGetLastError());
-
-      dataBytes -= thisBytes;
-      srcBuf += thisBytes;
-      
-      // Appears to need a bit of time to get going or completions arrive with a 'bad parameter' status ??
-      if (slowStart) {
-        Sleep(10);
-        --slowStart;
-      }
     }
+  } catch (RioException& err) {
+    throw std::runtime_error(err.what());
+  }
+}
+
+void RioNetwork::CommitSend() {
+  try {
+    if (!mRio.RIOSendEx(mRQ, NULL, 0, NULL, NULL, NULL, NULL, RIO_MSG_COMMIT_ONLY, NULL))
+      throw RioException("RIOSendEx Commit", WSAGetLastError());
   } catch (RioException& err) {
     throw std::runtime_error(err.what());
   }
@@ -266,7 +266,7 @@ void RioNetwork::Close() {
   }
 }
 
-bool RioNetwork::processCompletions(std::string &errStr, std::shared_ptr<Memory> &dstBuf, std::vector<Nan::Callback *>&sendCallbacks) {
+bool RioNetwork::processCompletions(std::string &errStr, std::shared_ptr<Memory> &dstBuf) {
   const DWORD RIO_MAX_RESULTS = 1000;
 
   RIORESULT results[RIO_MAX_RESULTS];
@@ -299,7 +299,7 @@ bool RioNetwork::processCompletions(std::string &errStr, std::shared_ptr<Memory>
   std::vector<std::pair<uint32_t, EXTENDED_RIO_BUF *> > recvResults;
   for (DWORD i = 0; i < numResults; ++i) {
     EXTENDED_RIO_BUF *pBuf = reinterpret_cast<EXTENDED_RIO_BUF*>(results[i].RequestContext);
-    if (0 != results[i].Status) {
+    if (false) {//0 != results[i].Status) { // Send completions appear to be unreliable !!
       std::string msg = std::string("Rio queued ") + ((OP_RECV == pBuf->OpType)?"Receive":(OP_SEND==pBuf->OpType)?"Send":"?Addr?");
       errStr = RioException(msg.c_str(), results[i].Status).what();
       return false;
@@ -311,11 +311,9 @@ bool RioNetwork::processCompletions(std::string &errStr, std::shared_ptr<Memory>
         totalRecvBytes += numBytes;
         recvResults.push_back(std::make_pair(numBytes, pBuf));
       }
-      else if (pBuf && (OP_SEND == pBuf->OpType)) {
-        sendCallbacks.push_back(pBuf->SendCallback);
-      }
     }
     else {
+      printf("No bytes transferred\n");
       errStr = std::string("No bytes transferred");
       return false;
     }
@@ -328,6 +326,7 @@ bool RioNetwork::processCompletions(std::string &errStr, std::shared_ptr<Memory>
       for (std::vector<std::pair<uint32_t, EXTENDED_RIO_BUF *> >::const_iterator it = recvResults.begin(); it != recvResults.end(); ++it) {
         EXTENDED_RIO_BUF *pBuf = it->second;
         memcpy_s(dstBuf->buf() + resultOffset, totalRecvBytes - resultOffset, mRecvBuff->buf() + pBuf->Offset, it->first);
+        resultOffset += it->first;
 
         if (!mRio.RIOReceive(mRQ, pBuf, 1, 0, pBuf))
           throw RioException("RIOReceive", WSAGetLastError());
@@ -386,16 +385,14 @@ uint32_t RioNetwork::CalcNumBuffers(uint32_t packetBytes, uint32_t minPackets) {
   SYSTEM_INFO systemInfo;
   GetSystemInfo(&systemInfo);
   DWORD gran = systemInfo.dwAllocationGranularity;
-  printf("CalcNumBuffers: granularity %d\n", gran);
   DWORD rnd = (gran * packetBytes) / gcd(gran, packetBytes);
 
   DWORD bufferBytes = ((packetBytes * minPackets + rnd - 1) / rnd) * rnd;
-  printf("CalcNumBuffers: result %d\n", bufferBytes / packetBytes);
   return bufferBytes / packetBytes;
 }
 
 void RioNetwork::InitialiseBuffer(uint32_t packetBytes, uint32_t numBufs, std::shared_ptr<Memory> &buff, RIO_BUFFERID &buffID, EXTENDED_RIO_BUF *&bufs, OP_TYPE op) {
-  printf ("Initialising %s buffer: %d buffers of %d bytes\n", (OP_RECV==op)?"receive":(OP_SEND==op)?"send":"addr", numBufs, packetBytes);
+  //printf ("Initialising %s buffer: %d buffers of %d bytes\n", (OP_RECV==op)?"receive":(OP_SEND==op)?"send":"addr", numBufs, packetBytes);
   DWORD bufferBytes = packetBytes * numBufs;
   PVOID buf = VirtualAlloc(NULL, bufferBytes, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
   if (!buf)
@@ -438,7 +435,7 @@ void RioNetwork::SetSocketRecvBuffer(uint32_t numBytes) {
   int len = sizeof(getNumBytes);
   if (SOCKET_ERROR == ::getsockopt(mSocket, SOL_SOCKET, SO_RCVBUF, reinterpret_cast<char *>(&getNumBytes), &len))
     throw RioException("GetSocketRecvBuffer", WSAGetLastError());
-  printf("Setting Receive buffer size to %d\n", getNumBytes);
+  //printf("Setting Receive buffer size to %u\n", getNumBytes);
 }
 
 void RioNetwork::SetSocketSendBuffer(uint32_t numBytes) {
@@ -449,7 +446,7 @@ void RioNetwork::SetSocketSendBuffer(uint32_t numBytes) {
   int len = sizeof(getNumBytes);
   if (SOCKET_ERROR == ::getsockopt(mSocket, SOL_SOCKET, SO_SNDBUF, reinterpret_cast<char *>(&getNumBytes), &len))
     throw RioException("GetSocketSendBuffer", WSAGetLastError());
-  printf("Setting Send buffer size to %d\n", getNumBytes);
+  //printf("Setting Send buffer size to %u\n", getNumBytes);
 }
 
 } // namespace streampunk

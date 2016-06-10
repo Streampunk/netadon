@@ -18,19 +18,22 @@
 
 #include "iProcess.h"
 #include <memory>
+#include <thread>
 
 namespace streampunk {
 
 class MyWorker;
-class RioNetwork;
 class iNetworkDriver;
 
 class UdpPort : public Nan::ObjectWrap, public iProcess {
 public:
   static NAN_MODULE_INIT(Init);
 
+  void listenLoop();
+  void startListenThread();
+
   // iProcess
-  uint32_t doProcess (std::shared_ptr<iProcessData> processData, std::string &errStr, uint32_t &port, std::string &addrStr);
+  void doProcess (std::shared_ptr<iProcessData> processData, std::string &errStr, std::shared_ptr<Memory> &dstBuf, uint32_t &port, std::string &addrStr);
   
 private:
   explicit UdpPort(std::string ipType, bool reuseAddr, uint32_t packetSize, uint32_t recvMinPackets, uint32_t sendMinPackets, Nan::Callback *callback);
@@ -91,7 +94,7 @@ private:
 
   MyWorker *mWorker;
   std::shared_ptr<iNetworkDriver> mNetwork;
-  //RioNetwork *mRioNetwork;
+  std::thread mListenThread;
 };
 
 } // namespace streampunk

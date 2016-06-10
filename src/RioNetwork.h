@@ -37,11 +37,12 @@ public:
   void SetBroadcast(bool flag);
   void SetMulticastLoopback(bool flag);
   void Bind(uint32_t &port, std::string &addrStr);
-  void Send(std::shared_ptr<Memory> data, uint32_t port, std::string addrStr, Nan::Callback *callback);
+  void Send(const tBufVec& bufVec, uint32_t port, std::string addrStr);
+  void CommitSend();
   void Close();
 
 protected:
-  bool processCompletions(std::string &errStr, std::shared_ptr<Memory> &dstBuf, std::vector<Nan::Callback *>&sendCallbacks);
+  bool processCompletions(std::string &errStr, std::shared_ptr<Memory> &dstBuf);
   
 private:
   bool mReuseAddr;

@@ -48,7 +48,16 @@ function UdpPort(options, cb, packetSize, recvMinPackets, sendMinPackets) {
     rioSendMinPackets = arguments[curArg++];
   }
 
-  this.udpPortAdon = new netAdon.UdpPort(optionsObj, rioPacketSize, rioRecvMinPackets, rioSendMinPackets, function() {
+  this.udpPortAdon = new netAdon.UdpPort(optionsObj, rioPacketSize, rioRecvMinPackets, rioSendMinPackets,
+  function(err, data) {
+    if (err)
+      this.emit('error', err);
+    else if (data)
+      this.emit('message', data);
+    else
+      this.emit('close');
+  }.bind(this),
+  function() {
     console.log('UdpPort exiting');
   });
   if (typeof rioCb === 'function')
@@ -145,11 +154,6 @@ UdpPort.prototype.bind = function(port, address, cb) {
           bindCb(null);
         }
       }
-    }.bind(this), function(err, data) {
-      if (err)
-        this.emit('error', err);
-      else if (data)
-        this.emit('message', data);
     }.bind(this));
   } catch (err) {
     if (typeof bindCb === 'function')
@@ -176,6 +180,7 @@ UdpPort.prototype.send = function(data, offset, length, port, address, cb) {
       throw ("Expected send buffer not found");
 
     this.udpPortAdon.send(bufArray, offset, length, port, address, function() {
+      var ba = bufArray.Length; // protect bufArray from GC until callback has fired !!
       if (typeof cb === 'function')      
         cb(null);
     });
@@ -192,9 +197,7 @@ UdpPort.prototype.close = function(cb) {
     this.on('close', cb);
 
   try {
-    this.udpPortAdon.close(function() {
-      this.emit('close');
-    }.bind(this));
+    this.udpPortAdon.close();
   } catch (err) {
     this.emit('error', err);
   } 

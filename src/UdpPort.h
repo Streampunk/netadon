@@ -29,24 +29,25 @@ class UdpPort : public Nan::ObjectWrap, public iProcess {
 public:
   static NAN_MODULE_INIT(Init);
 
-  void listenLoop();
-  void startListenThread();
-
   // iProcess
   void doProcess (std::shared_ptr<iProcessData> processData, std::string &errStr, std::shared_ptr<Memory> &dstBuf, uint32_t &port, std::string &addrStr);
   
 private:
-  explicit UdpPort(std::string ipType, bool reuseAddr, uint32_t packetSize, uint32_t recvMinPackets, uint32_t sendMinPackets, Nan::Callback *callback);
+  explicit UdpPort(std::string ipType, bool reuseAddr, uint32_t packetSize, uint32_t recvMinPackets, uint32_t sendMinPackets, 
+                   Nan::Callback *portCallback, Nan::Callback *callback);
   ~UdpPort();
+  void listenLoop();
 
   static NAN_METHOD(New) {
     if (info.IsConstructCall()) {
-      if (info.Length() != 5)
-        return Nan::ThrowError("UdpPort constructor expects 5 arguments");
+      if (info.Length() != 6)
+        return Nan::ThrowError("UdpPort constructor expects 6 arguments");
       if (!info[0]->IsObject())
         return Nan::ThrowError("UdpPort constructor expects an object as the first parameter");
       if (!info[4]->IsFunction())
         return Nan::ThrowError("UdpPort constructor requires a valid callback as the fifth parameter");
+      if (!info[5]->IsFunction())
+        return Nan::ThrowError("UdpPort constructor requires a valid callback as the sixth parameter");
 
       v8::Local<v8::Object> options = v8::Local<v8::Object>::Cast(info[0]);
       v8::Local<v8::String> typeStr = Nan::New<v8::String>("type").ToLocalChecked();
@@ -65,13 +66,14 @@ private:
       uint32_t packetSize = Nan::To<uint32_t>(info[1]).FromJust();
       uint32_t recvMinPackets = Nan::To<uint32_t>(info[2]).FromJust();
       uint32_t sendMinPackets = Nan::To<uint32_t>(info[3]).FromJust();
-      Nan::Callback *callback = new Nan::Callback(v8::Local<v8::Function>::Cast(info[4]));
-      UdpPort *obj = new UdpPort(ipType, reuseAddr, packetSize, recvMinPackets, sendMinPackets, callback);
+      Nan::Callback *portCallback = new Nan::Callback(v8::Local<v8::Function>::Cast(info[4]));
+      Nan::Callback *callback = new Nan::Callback(v8::Local<v8::Function>::Cast(info[5]));
+      UdpPort *obj = new UdpPort(ipType, reuseAddr, packetSize, recvMinPackets, sendMinPackets, portCallback, callback);
       obj->Wrap(info.This());
       info.GetReturnValue().Set(info.This());
     } else {
-      const int argc = 5;
-      v8::Local<v8::Value> argv[] = { info[0], info[1], info[2], info[3], info[4] };
+      const int argc = 6;
+      v8::Local<v8::Value> argv[] = { info[0], info[1], info[2], info[3], info[4], info[5] };
       v8::Local<v8::Function> cons = Nan::New(constructor());
       info.GetReturnValue().Set(cons->NewInstance(argc, argv));
     }
@@ -93,6 +95,7 @@ private:
   static NAN_METHOD(Close);
 
   MyWorker *mWorker;
+  uint32_t mIsBound;
   std::shared_ptr<iNetworkDriver> mNetwork;
   std::thread mListenThread;
 };

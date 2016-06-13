@@ -39,8 +39,6 @@ public:
   virtual void Close() = 0;
 
   virtual bool processCompletions(std::string &errStr, std::shared_ptr<Memory> &dstBuf) = 0;
-  
-private:
 };
 
 } // namespace streampunk

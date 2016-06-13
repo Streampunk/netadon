@@ -41,7 +41,6 @@ public:
   void CommitSend();
   void Close();
 
-protected:
   bool processCompletions(std::string &errStr, std::shared_ptr<Memory> &dstBuf);
   
 private:

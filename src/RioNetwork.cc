@@ -298,24 +298,13 @@ bool RioNetwork::processCompletions(std::string &errStr, std::shared_ptr<Memory>
   uint32_t totalRecvBytes = 0;
   std::vector<std::pair<uint32_t, EXTENDED_RIO_BUF *> > recvResults;
   for (DWORD i = 0; i < numResults; ++i) {
-    EXTENDED_RIO_BUF *pBuf = reinterpret_cast<EXTENDED_RIO_BUF*>(results[i].RequestContext);
-    if (false) {//0 != results[i].Status) { // Send completions appear to be unreliable !!
-      std::string msg = std::string("Rio queued ") + ((OP_RECV == pBuf->OpType)?"Receive":(OP_SEND==pBuf->OpType)?"Send":"?Addr?");
-      errStr = RioException(msg.c_str(), results[i].Status).what();
-      return false;
-    }
-
     if (results[i].BytesTransferred) {
+      EXTENDED_RIO_BUF *pBuf = reinterpret_cast<EXTENDED_RIO_BUF*>(results[i].RequestContext);
       if (pBuf && (OP_RECV == pBuf->OpType)) {
         uint32_t numBytes = results[i].BytesTransferred;
         totalRecvBytes += numBytes;
         recvResults.push_back(std::make_pair(numBytes, pBuf));
       }
-    }
-    else {
-      printf("No bytes transferred\n");
-      errStr = std::string("No bytes transferred");
-      return false;
     }
   }
 

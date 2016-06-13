@@ -73,14 +73,10 @@ class iProcess;
 class iProcessData;
 class MyWorker : public Nan::AsyncProgressWorker {
 public:
-  MyWorker(Nan::Callback *callback)
-    : Nan::AsyncProgressWorker(callback), mActive(true), mProgressCallback(NULL) {}
+  MyWorker(Nan::Callback *callback, Nan::Callback *progressCallback)
+    : Nan::AsyncProgressWorker(callback), mActive(true), mProgressCallback(progressCallback) {}
   ~MyWorker() {
     delete mProgressCallback;
-  }
-
-  void setProgressCallback(Nan::Callback *callback) {
-    mProgressCallback = callback;
   }
 
   uint32_t numQueued() {
@@ -120,7 +116,7 @@ private:
     {
       std::shared_ptr<WorkParams> wp = mDoneQueue.dequeue();
       
-      if (!wp->mErrStr.empty() && mProgressCallback) {
+      if (!wp->mErrStr.empty()) {
         printf("Error: %s\n", wp->mErrStr.c_str());
         
         Local<Value> argv[] = { Nan::New(wp->mErrStr.c_str()).ToLocalChecked() };
@@ -140,13 +136,14 @@ private:
         std::shared_ptr<Memory> resultMem = wp->mDstBuf;
         outstandingAllocs.insert(make_pair((char*)resultMem->buf(), resultMem));
         Nan::MaybeLocal<v8::Object> maybeBuf = Nan::NewBuffer((char*)resultMem->buf(), resultMem->numBytes(), freeAllocCb, 0);
-        if (mProgressCallback) {
-          Local<Value> argv[] = { Nan::Null(), maybeBuf.ToLocalChecked() };
-          mProgressCallback->Call(2, argv);
-        }
+        Local<Value> argv[] = { Nan::Null(), maybeBuf.ToLocalChecked() };
+        mProgressCallback->Call(2, argv);
       }
 
       if (!wp->mProcess && !mActive) {
+        Local<Value> argv[] = { Nan::Null() };
+        mProgressCallback->Call(1, argv);
+
         // notify the thread to exit
         std::unique_lock<std::mutex> lk(mMtx);
         mCv.notify_one();

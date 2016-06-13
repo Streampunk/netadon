@@ -81,8 +81,11 @@ void UdpPort::listenLoop() {
 
   while (active) {
     active = !mNetwork->processCompletions(errStr, dstBuf);
-    if (active && (!errStr.empty() || dstBuf))
-      mWorker->doProcess(std::make_shared<UdpPortProcessData>(errStr, dstBuf), this, NULL);
+    if (active) {
+      if (!errStr.empty() || dstBuf) {
+        mWorker->doProcess(std::make_shared<UdpPortProcessData>(errStr, dstBuf), this, NULL);
+      }
+    }
     else
       mWorker->quit();
   }

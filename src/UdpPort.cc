@@ -50,13 +50,14 @@ public:
 
 class UdpPortSendProcessData : public iProcessData {
 public:
-  UdpPortSendProcessData(const tBufVec &bufVec, uint32_t port, const std::string &addrStr) 
-    : mBufVec(bufVec), mPort(port), mAddrStr(addrStr) {}
+  UdpPortSendProcessData(const std::shared_ptr<Memory> buf, uint32_t port, const std::string &addrStr, bool defer) 
+    : mBuf(buf), mPort(port), mAddrStr(addrStr), mDefer(false) {}
   ~UdpPortSendProcessData() {}
 
-  const tBufVec mBufVec;
+  const std::shared_ptr<Memory> mBuf;
   const uint32_t mPort;
   const std::string mAddrStr;
+  const bool mDefer;
 };
 
 class UdpPortCloseProcessData : public iProcessData {
@@ -118,8 +119,12 @@ void UdpPort::doProcess (std::shared_ptr<iProcessData> processData, std::string 
         mIsBound = true;
       }
 
-      mNetwork->Send(uspd->mBufVec, uspd->mPort, uspd->mAddrStr);
-      mNetwork->CommitSend();
+      tBufVec bufVec;
+      bufVec.push_back(uspd->mBuf);
+
+      mNetwork->Send(bufVec, uspd->mPort, uspd->mAddrStr);
+      if (!uspd->mDefer)
+        mNetwork->CommitSend();
     }
 
     std::shared_ptr<UdpPortCloseProcessData> ucpd = std::dynamic_pointer_cast<UdpPortCloseProcessData>(processData);
@@ -238,42 +243,40 @@ NAN_METHOD(UdpPort::Bind) {
 }
 
 NAN_METHOD(UdpPort::Send) {
-  if (info.Length() != 6)
+  if (info.Length() != 7)
     return Nan::ThrowError("UdpPort Send expects 6 arguments");
-  if (!info[0]->IsArray())
-    return Nan::ThrowError("UdpPort Send requires a valid buffer array as the first parameter");
-  if (!info[5]->IsFunction())
+  if (!info[0]->IsObject())
+    return Nan::ThrowError("UdpPort Send requires a valid buffer as the first parameter");
+  if (!info[5]->IsObject())
+    return Nan::ThrowError("UdpPort Send requires an object as the fifth parameter");
+  if (!info[6]->IsFunction())
     return Nan::ThrowError("UdpPort Send requires a valid callback as the sixth parameter");
 
-  Local<Array> bufArray = Local<Array>::Cast(info[0]);
+  Local<Object> buf = Local<Object>::Cast(info[0]);
   uint32_t offset = Nan::To<uint32_t>(info[1]).FromJust();
   uint32_t length = Nan::To<uint32_t>(info[2]).FromJust();
   uint32_t port = Nan::To<uint32_t>(info[3]).FromJust();
   String::Utf8Value addrStr(Nan::To<String>(info[4]).ToLocalChecked());
-  Nan::Callback *callback = new Nan::Callback(Local<Function>::Cast(info[5]));
 
-  if (1 == bufArray->Length()) {
-    uint32_t buffLen = (uint32_t)node::Buffer::Length(bufArray->Get(0));
-    if (offset + length > buffLen)
-      return Nan::ThrowError("UdpPort Send - out of range offset/length");
-  }
+  Local<Object> options = Local<Object>::Cast(info[5]);
+  Local<String> modeStr = Nan::New<String>("mode").ToLocalChecked();
+  if (!Nan::Has(options, modeStr).FromJust())
+    return Nan::ThrowError("UdpPort Send requires mode string in the fifth parameter");
 
-  tBufVec bufVec;
-  for (uint32_t i = 0; i < bufArray->Length(); ++i) {
-    Local<Object> bufferObj = Local<Object>::Cast(bufArray->Get(i));
-    uint8_t *sendBuf = (uint8_t *)node::Buffer::Data(bufferObj);
-    uint32_t bufLen = (uint32_t)node::Buffer::Length(bufferObj);
-    if (1 == bufArray->Length()) {
-      sendBuf += offset;
-      bufLen = length;
-    }
+  String::Utf8Value modeUtf8(Nan::To<String>(Nan::Get(options, modeStr).ToLocalChecked()).ToLocalChecked());
+  std::string mode = *modeUtf8;
+  bool defer = (0 == mode.compare("defer"));
 
-    bufVec.push_back(Memory::makeNew(sendBuf, bufLen));
-  } 
+  Nan::Callback *callback = new Nan::Callback(Local<Function>::Cast(info[6]));
+
+  uint32_t buffLen = (uint32_t)node::Buffer::Length(buf);
+  if (offset + length > buffLen)
+    return Nan::ThrowError("UdpPort Send - out of range offset/length");
+  uint8_t *sendBuf = (uint8_t *)node::Buffer::Data(buf) + offset;
 
   UdpPort *obj = Nan::ObjectWrap::Unwrap<UdpPort>(info.Holder());
   try {
-    obj->mWorker->doProcess(std::make_shared<UdpPortSendProcessData>(bufVec, port, *addrStr), obj, callback);
+    obj->mWorker->doProcess(std::make_shared<UdpPortSendProcessData>(Memory::makeNew(sendBuf, length), port, *addrStr, defer), obj, callback);
   } catch (std::runtime_error& err) {
     return Nan::ThrowError(Nan::New(err.what()).ToLocalChecked());
   }

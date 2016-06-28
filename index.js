@@ -167,28 +167,22 @@ UdpPort.prototype.address = function() {
   return this.bindAddress;
 }
 
-UdpPort.prototype.send = function(buf, offset, length, port, address, cb, options) {
+UdpPort.prototype.send = function(data, offset, length, port, address, cb) {
   try {
-    var sendCb;
-    var optionsObj = { mode:'commit' };
-
-    var curArg = 5;
-    if (typeof arguments[curArg] === 'function') {
-      sendCb = arguments[curArg];
-      ++curArg;
+    var bufArray;
+    if (Buffer.isBuffer(data)) {
+      bufArray = new Array(1);
+      bufArray[0] = data;
     }
-    if (typeof arguments[curArg] === 'string') {
-      optionsObj.mode = arguments[curArg];
-      ++curArg;
-    } else if (typeof arguments[curArg] === 'object') {
-      optionsObj = arguments[curArg];
-      ++curArg;
-    } 
+    else if (Array.isArray(data))
+      bufArray = data;
+    else 
+      throw ("Expected send buffer not found");
 
-    this.udpPortAdon.send(buf, offset, length, port, address, optionsObj, function() {
-      var ba = buf.Length; // protect buf from GC until callback has fired !!
-      if (typeof sendCb === 'function')      
-        sendCb(null);
+    this.udpPortAdon.send(bufArray, offset, length, port, address, function() {
+      var ba = bufArray.Length; // protect bufArray from GC until callback has fired !!
+      if (typeof cb === 'function')      
+        cb(null);
     });
   } catch (err) {
     if (typeof cb === 'function')

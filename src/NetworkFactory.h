@@ -32,8 +32,8 @@ public:
   static std::shared_ptr<iNetworkDriver> createNetwork(std::string ipType, bool reuseAddr, uint32_t packetSize, uint32_t recvMinPackets, uint32_t sendMinPackets) {
     #if defined _WIN32
       return std::make_shared<RioNetwork>(ipType, reuseAddr, packetSize, recvMinPackets, sendMinPackets);
-    #elif defined _LINUX
-      throw std::runtime_error("No Linux implementation of iNetworkDriver available");
+    #else //#elif defined _LINUX
+      throw std::runtime_error("No Linux or OSX implementation of iNetworkDriver available");
     #endif
 
     return std::shared_ptr<iNetworkDriver>();

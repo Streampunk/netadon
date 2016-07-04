@@ -3,16 +3,17 @@
     {
       "target_name": "netadon",
       "sources": [ "src/netadon.cc", 
-                   "src/UdpPort.cc",
-                   "src/RioNetwork.cc" ],
+                   "src/UdpPort.cc" ],
       "include_dirs": [ "<!(node -e \"require('nan')\")" ],
       'conditions': [
         ['OS=="linux"', {
           "cflags_cc!": [ 
-            "-fno-rtti" 
+            "-fno-rtti",
+            "-fno-exceptions"
           ],
           "cflags_cc": [
-            "-std=c++11"
+            "-std=c++11",
+            "-fexceptions"
           ],
         }],
         ['OS=="mac"', {
@@ -21,11 +22,13 @@
             'MACOSX_DEPLOYMENT_TARGET': '10.7',
             'OTHER_CPLUSPLUSFLAGS': [
               '-std=c++11',
-              '-stdlib=libc++'
+              '-stdlib=libc++',
+              '-fexceptions'
             ]
           },
         }],
         ['OS=="win"', {
+          "sources": [ "src/RioNetwork.cc" ],
           "configurations": {
             "Release": {
               "msvs_settings": {

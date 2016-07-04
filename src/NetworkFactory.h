@@ -19,7 +19,7 @@
 #include <memory>
 
 #if defined _WIN32
-   #include "RioNetwork.h"
+  #include "RioNetwork.h"
 #elif defined _LINUX
 #endif
 
@@ -33,8 +33,10 @@ public:
     #if defined _WIN32
       return std::make_shared<RioNetwork>(ipType, reuseAddr, packetSize, recvMinPackets, sendMinPackets);
     #elif defined _LINUX
-      throw std::runtime_error("No Linux implementation of iNetworkDriver available")
+      throw std::runtime_error("No Linux implementation of iNetworkDriver available");
     #endif
+
+    return std::shared_ptr<iNetworkDriver>();
   }
 };
 

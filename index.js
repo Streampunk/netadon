@@ -226,7 +226,7 @@ netadon.createSocket = function (options, cb, packetSize, recvMinPackets, sendMi
 
         // console.log("Sending from buffer of length", bufArray.length);
         bufArray.forEach(function (p) {
-          simpleSend.call(sock, p, offset, length, port, address, function (err) {
+          simpleSend.call(sock, p, 0, p.length, port, address, function (err) {
             if (err) cb(err);
           });
         });

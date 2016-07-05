@@ -31,9 +31,9 @@ public:
 
   // iProcess
   void doProcess (std::shared_ptr<iProcessData> processData, std::string &errStr, std::shared_ptr<Memory> &dstBuf, uint32_t &port, std::string &addrStr);
-  
+
 private:
-  explicit UdpPort(std::string ipType, bool reuseAddr, uint32_t packetSize, uint32_t recvMinPackets, uint32_t sendMinPackets, 
+  explicit UdpPort(std::string ipType, bool reuseAddr, uint32_t packetSize, uint32_t recvMinPackets, uint32_t sendMinPackets,
                    Nan::Callback *portCallback, Nan::Callback *callback);
   ~UdpPort();
   void listenLoop();
@@ -68,9 +68,14 @@ private:
       uint32_t sendMinPackets = Nan::To<uint32_t>(info[3]).FromJust();
       Nan::Callback *portCallback = new Nan::Callback(v8::Local<v8::Function>::Cast(info[4]));
       Nan::Callback *callback = new Nan::Callback(v8::Local<v8::Function>::Cast(info[5]));
-      UdpPort *obj = new UdpPort(ipType, reuseAddr, packetSize, recvMinPackets, sendMinPackets, portCallback, callback);
-      obj->Wrap(info.This());
-      info.GetReturnValue().Set(info.This());
+      try {
+        UdpPort *obj = new UdpPort(ipType, reuseAddr, packetSize, recvMinPackets, sendMinPackets, portCallback, callback);
+        obj->Wrap(info.This());
+        info.GetReturnValue().Set(info.This());
+      }
+      catch (std::runtime_error e) {
+        return Nan::ThrowError(e.what());
+      }
     } else {
       const int argc = 6;
       v8::Local<v8::Value> argv[] = { info[0], info[1], info[2], info[3], info[4], info[5] };

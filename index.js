@@ -16,8 +16,8 @@
 'use strict';
 var netAdon = require('bindings')('./Release/netadon');
 
-//var SegfaultHandler = require('../node-segfault-handler');
-//SegfaultHandler.registerHandler("crash.log");
+// var SegfaultHandler = require('../node-segfault-handler');
+// SegfaultHandler.registerHandler("crash.log");
 
 var dgram = require('dgram');
 const util = require('util');
@@ -79,7 +79,7 @@ UdpPort.prototype.addMembership = function(maddr, optUaddr) {
     this.emit('error', err);
   }
 }
- 
+
 UdpPort.prototype.dropMembership = function(maddr, optUaddr) {
   var uaddr = '';
   if (typeof arguments[1] === 'string')
@@ -91,7 +91,7 @@ UdpPort.prototype.dropMembership = function(maddr, optUaddr) {
     this.emit('error', err);
   }
 }
- 
+
 UdpPort.prototype.setTTL = function(ttl) {
   try {
     this.udpPortAdon.setTTL(ttl);
@@ -115,7 +115,7 @@ UdpPort.prototype.setBroadcast = function(flag) {
     this.emit('error', err);
   }
 }
- 
+
 UdpPort.prototype.setMulticastLoopback = function(flag) {
   try {
     this.udpPortAdon.setMulticastLoopback(flag);
@@ -123,7 +123,7 @@ UdpPort.prototype.setMulticastLoopback = function(flag) {
     this.emit('error', err);
   }
 }
- 
+
 UdpPort.prototype.bind = function(port, address, cb) {
   var bindPort = 0;
   var bindAddr = '';
@@ -160,7 +160,7 @@ UdpPort.prototype.bind = function(port, address, cb) {
       bindCb(err);
     else
       this.emit('error', err);
-  } 
+  }
 }
 
 UdpPort.prototype.address = function() {
@@ -176,12 +176,12 @@ UdpPort.prototype.send = function(data, offset, length, port, address, cb) {
     }
     else if (Array.isArray(data))
       bufArray = data;
-    else 
+    else
       throw ("Expected send buffer not found");
 
     this.udpPortAdon.send(bufArray, offset, length, port, address, function() {
       var ba = bufArray.Length; // protect bufArray from GC until callback has fired !!
-      if (typeof cb === 'function')      
+      if (typeof cb === 'function')
         cb(null);
     });
   } catch (err) {
@@ -189,7 +189,7 @@ UdpPort.prototype.send = function(data, offset, length, port, address, cb) {
       cb(err);
     else
       this.emit('error', err);
-  } 
+  }
 }
 
 UdpPort.prototype.close = function(cb) {
@@ -200,16 +200,41 @@ UdpPort.prototype.close = function(cb) {
     this.udpPortAdon.close();
   } catch (err) {
     this.emit('error', err);
-  } 
+  }
 }
 
 function netadon() {}
 netadon.createSocket = function (options, cb, packetSize, recvMinPackets, sendMinPackets) {
   try {
-    return new UdpPort (options, cb, packetSize, recvMinPackets, sendMinPackets);
+    var sock = new UdpPort (options, cb, packetSize, recvMinPackets, sendMinPackets);
+    return sock;
   } catch (err) {
-    return dgram.createSocket(options, cb);
+    console.log('Falling back to dgram sockets as no fast networking support on this platform.');
+    var sock = dgram.createSocket(options, cb);
+    if (process.version.startsWith('v4.')) {
+      var simpleSend = sock.send;
+      sock.send = function (data, offset, length, port, address, cb) {
+        var bufArray;
+        if (Buffer.isBuffer(data)) {
+          bufArray = new Array(1);
+          bufArray[0] = data;
+        }
+        else if (Array.isArray(data))
+          bufArray = data;
+        else
+          throw ("Expected send buffer not found");
+
+        // console.log("Sending from buffer of length", bufArray.length);
+        bufArray.forEach(function (p) {
+          simpleSend.call(sock, p, offset, length, port, address, function (err) {
+            if (err) cb(err);
+          });
+        });
+        cb();
+      }
+    }
+    return sock;
   }
-} 
+}
 
 module.exports = netadon;

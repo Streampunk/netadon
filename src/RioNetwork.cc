@@ -266,7 +266,7 @@ void RioNetwork::Close() {
   }
 }
 
-bool RioNetwork::processCompletions(std::string &errStr, std::shared_ptr<Memory> &dstBuf) {
+bool RioNetwork::processCompletions(std::string &errStr, tBufVec &bufVec) {
   const DWORD RIO_MAX_RESULTS = 1000;
 
   RIORESULT results[RIO_MAX_RESULTS];
@@ -295,30 +295,20 @@ bool RioNetwork::processCompletions(std::string &errStr, std::shared_ptr<Memory>
     return false;
   }
 
-  uint32_t totalRecvBytes = 0;
-  std::vector<std::pair<uint32_t, EXTENDED_RIO_BUF *> > recvResults;
-  for (DWORD i = 0; i < numResults; ++i) {
-    if (results[i].BytesTransferred) {
-      EXTENDED_RIO_BUF *pBuf = reinterpret_cast<EXTENDED_RIO_BUF*>(results[i].RequestContext);
-      if (pBuf && (OP_RECV == pBuf->OpType)) {
-        uint32_t numBytes = results[i].BytesTransferred;
-        totalRecvBytes += numBytes;
-        recvResults.push_back(std::make_pair(numBytes, pBuf));
-      }
-    }
-  }
-
   try {
-    if (totalRecvBytes) {
-      uint32_t resultOffset = 0;
-      dstBuf = Memory::makeNew(totalRecvBytes);
-      for (std::vector<std::pair<uint32_t, EXTENDED_RIO_BUF *> >::const_iterator it = recvResults.begin(); it != recvResults.end(); ++it) {
-        EXTENDED_RIO_BUF *pBuf = it->second;
-        memcpy_s(dstBuf->buf() + resultOffset, totalRecvBytes - resultOffset, mRecvBuff->buf() + pBuf->Offset, it->first);
-        resultOffset += it->first;
+    for (DWORD i = 0; i < numResults; ++i) {
+      if (results[i].BytesTransferred) {
+        EXTENDED_RIO_BUF *pBuf = reinterpret_cast<EXTENDED_RIO_BUF*>(results[i].RequestContext);
+        if (pBuf && (OP_RECV == pBuf->OpType)) {
+          uint32_t numBytes = results[i].BytesTransferred;
 
-        if (!mRio.RIOReceive(mRQ, pBuf, 1, 0, pBuf))
-          throw RioException("RIOReceive", WSAGetLastError());
+          std::shared_ptr<Memory> dstBuf = Memory::makeNew(numBytes);
+          memcpy_s(dstBuf->buf(), dstBuf->numBytes(), mRecvBuff->buf() + pBuf->Offset, numBytes);
+          bufVec.push_back(dstBuf);
+
+          if (!mRio.RIOReceive(mRQ, pBuf, 1, 0, pBuf))
+            throw RioException("RIOReceive", WSAGetLastError());
+        }
       }
     }
   } catch (RioException& err) {

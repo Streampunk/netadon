@@ -21,6 +21,7 @@
 namespace streampunk {
 
 class Memory;
+typedef std::vector<std::shared_ptr<Memory> > tBufVec;
 
 class iProcessData {
 public:
@@ -31,7 +32,7 @@ class iProcess {
 public:
   virtual ~iProcess() {}  
   virtual void doProcess (std::shared_ptr<iProcessData> processData, std::string &errStr, 
-                          std::shared_ptr<Memory> &dstBuf, uint32_t &port, std::string &addrStr) = 0;
+                          tBufVec &bufVec, uint32_t &port, std::string &addrStr) = 0;
 };
 
 } // namespace streampunk

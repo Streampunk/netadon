@@ -41,7 +41,7 @@ public:
   void CommitSend();
   void Close();
 
-  bool processCompletions(std::string &errStr, std::shared_ptr<Memory> &dstBuf);
+  bool processCompletions(std::string &errStr, tBufVec &bufVec);
   
 private:
   bool mReuseAddr;

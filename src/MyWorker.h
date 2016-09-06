@@ -98,7 +98,7 @@ private:
     while (mActive) {
       std::shared_ptr<WorkParams> wp = mWorkQueue.dequeue();
       if (wp->mProcess)
-        wp->mProcess->doProcess(wp->mProcessData, wp->mErrStr, wp->mDstBuf, wp->mPort, wp->mAddrStr);
+        wp->mProcess->doProcess(wp->mProcessData, wp->mErrStr, wp->mBufVec, wp->mPort, wp->mAddrStr);
       else
         mActive = false;
       mDoneQueue.enqueue(wp);
@@ -132,8 +132,8 @@ private:
           wp->mCallback->Call(1, argv);
         }
       }
-      else if (wp->mDstBuf) {
-        std::shared_ptr<Memory> resultMem = wp->mDstBuf;
+      else for (tBufVec::const_iterator it = wp->mBufVec.begin(); it != wp->mBufVec.end(); ++it) {
+        std::shared_ptr<Memory> resultMem = *it;
         outstandingAllocs.insert(make_pair((char*)resultMem->buf(), resultMem));
         Nan::MaybeLocal<v8::Object> maybeBuf = Nan::NewBuffer((char*)resultMem->buf(), resultMem->numBytes(), freeAllocCb, 0);
         Local<Value> argv[] = { Nan::Null(), maybeBuf.ToLocalChecked() };
@@ -167,7 +167,7 @@ private:
     iProcess *mProcess;
     Nan::Callback *mCallback;
     std::string mErrStr;
-    std::shared_ptr<Memory> mDstBuf; 
+    tBufVec mBufVec; 
     uint32_t mPort;
     std::string mAddrStr;
   };

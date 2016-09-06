@@ -30,7 +30,7 @@ public:
   static NAN_MODULE_INIT(Init);
 
   // iProcess
-  void doProcess (std::shared_ptr<iProcessData> processData, std::string &errStr, std::shared_ptr<Memory> &dstBuf, uint32_t &port, std::string &addrStr);
+  void doProcess (std::shared_ptr<iProcessData> processData, std::string &errStr, tBufVec &bufVec, uint32_t &port, std::string &addrStr);
 
 private:
   explicit UdpPort(std::string ipType, bool reuseAddr, uint32_t packetSize, uint32_t recvMinPackets, uint32_t sendMinPackets,

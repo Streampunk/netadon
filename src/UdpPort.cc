@@ -26,21 +26,21 @@ namespace streampunk {
 
 class UdpPortProcessData : public iProcessData {
 public:
-  UdpPortProcessData(std::string errStr, std::shared_ptr<Memory> buf) 
-    : mErrStr(errStr), mDstBuf(buf) {}
+  UdpPortProcessData(const std::string &errStr, const tBufVec &bufVec) 
+    : mErrStr(errStr), mBufVec(bufVec) {}
   ~UdpPortProcessData() {}
 
   std::string errStr() const { return mErrStr; }
-  std::shared_ptr<Memory> dstBuf() const { return mDstBuf; }
+  tBufVec bufVec() const { return mBufVec; }
 
 private:
   std::string mErrStr;
-  std::shared_ptr<Memory> mDstBuf;
+  tBufVec mBufVec;
 };
 
 class UdpPortBindProcessData : public iProcessData {
 public:
-  UdpPortBindProcessData(uint32_t port, std::string addrStr)
+  UdpPortBindProcessData(uint32_t port, const std::string &addrStr)
     : mPort(port), mAddrStr(addrStr) {}
   ~UdpPortBindProcessData() {}
 
@@ -76,14 +76,14 @@ UdpPort::~UdpPort() {}
 
 void UdpPort::listenLoop() {
   bool active = true;
-  std::string errStr;
-  std::shared_ptr<Memory> dstBuf;
 
   while (active) {
-    active = !mNetwork->processCompletions(errStr, dstBuf);
+    std::string errStr;
+    tBufVec bufVec;
+    active = !mNetwork->processCompletions(errStr, bufVec);
     if (active) {
-      if (!errStr.empty() || dstBuf) {
-        mWorker->doProcess(std::make_shared<UdpPortProcessData>(errStr, dstBuf), this, NULL);
+      if (!errStr.empty() || !bufVec.empty()) {
+        mWorker->doProcess(std::make_shared<UdpPortProcessData>(errStr, bufVec), this, NULL);
       }
     }
     else
@@ -92,12 +92,12 @@ void UdpPort::listenLoop() {
 }
 
 // iProcess
-void UdpPort::doProcess (std::shared_ptr<iProcessData> processData, std::string &errStr, std::shared_ptr<Memory> &dstBuf, uint32_t &port, std::string &addrStr) {
+void UdpPort::doProcess (std::shared_ptr<iProcessData> processData, std::string &errStr, tBufVec &bufVec, uint32_t &port, std::string &addrStr) {
   try {
     std::shared_ptr<UdpPortProcessData> upd = std::dynamic_pointer_cast<UdpPortProcessData>(processData);
     if (upd) {
       errStr = upd->errStr();
-      dstBuf = upd->dstBuf();
+      bufVec = upd->bufVec();
     }
 
     std::shared_ptr<UdpPortBindProcessData> ubpd = std::dynamic_pointer_cast<UdpPortBindProcessData>(processData);

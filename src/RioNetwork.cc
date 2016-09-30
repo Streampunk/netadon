@@ -72,7 +72,8 @@ RioNetwork::RioNetwork(std::string ipType, bool reuseAddr, uint32_t packetSize, 
     mSocket(INVALID_SOCKET), mIOCP(INVALID_HANDLE_VALUE), mCQ(RIO_INVALID_CQ), mRQ(RIO_INVALID_RQ), 
     mRecvBuffID(RIO_INVALID_BUFFERID), mRecvBufs(NULL),
     mSendBuffID(RIO_INVALID_BUFFERID), mSendBufs(NULL),
-    mAddrBuffID(RIO_INVALID_BUFFERID), mAddrBufs(NULL) {
+    mAddrBuffID(RIO_INVALID_BUFFERID), mAddrBufs(NULL),
+    mStartup(true), mNumSendsQueued(0), mMutex(), mCv() {
   try {
     if (ipType.compare("udp4"))
       throw std::runtime_error("Supports udp4 network only");
@@ -231,6 +232,15 @@ void RioNetwork::Send(const tBufVec& bufVec, uint32_t port, std::string addrStr)
   if (memcpy_s(mAddrBuff->buf() + pAddrBuf->Offset, addrPktSize, &addr.sin_family, sizeof(SOCKADDR_IN)))
     throw std::runtime_error("memcpy_s failed");
   
+  // Check how many packets are queued and wait if at limit
+  {
+    uint32_t numPackets = (uint32_t)bufVec.size();
+    auto& localNumPackets = numPackets;
+    std::unique_lock<std::mutex> lk(mMutex);
+    mCv.wait(lk, [this, localNumPackets]{return mNumSendsQueued + localNumPackets < mSendNumBufs;});
+    mNumSendsQueued += numPackets;
+  }
+
   try {
     for (tBufVec::const_iterator it = bufVec.begin(); it != bufVec.end(); ++it) {
       uint32_t index = InterlockedIncrement(&mSendIndex);
@@ -239,9 +249,15 @@ void RioNetwork::Send(const tBufVec& bufVec, uint32_t port, std::string addrStr)
       if (memcpy_s(mSendBuff->buf() + pBuf->Offset, mPacketSize, (*it)->buf(), thisBytes))
         throw std::runtime_error("memcpy_s failed");
       pBuf->Length = thisBytes;
-      
-      if (!mRio.RIOSendEx(mRQ, pBuf, 1, NULL, pAddrBuf, NULL, NULL, RIO_MSG_DEFER, pBuf))
+
+      if (!mRio.RIOSendEx(mRQ, pBuf, 1, NULL, pAddrBuf, NULL, NULL, mStartup?0:RIO_MSG_DEFER, pBuf))
         throw RioException("RIOSendEx", WSAGetLastError());
+
+      // ??? Apparently have to slow down for first packet otherwise next ~1000 may disappear ???
+      if (mStartup) {
+        Sleep(20);
+        mStartup = false;
+      }
     }
   } catch (RioException& err) {
     throw std::runtime_error(err.what());
@@ -259,6 +275,11 @@ void RioNetwork::CommitSend() {
 
 void RioNetwork::Close() {
   try {
+    // Check how many packets are queued and wait until all sent
+    std::unique_lock<std::mutex> lk(mMutex);
+    if (!mCv.wait_for(lk, std::chrono::milliseconds(10000), [this]{return mNumSendsQueued == 0;}))
+      printf("RioNetwork close: timed out waiting for %d sends to complete\n", mNumSendsQueued);
+
     if (!::PostQueuedCompletionStatus(mIOCP, 0, 0, 0))
       throw RioException("PostQueuedCompletionStatus", GetLastError());
   } catch (RioException& err) {
@@ -295,6 +316,7 @@ bool RioNetwork::processCompletions(std::string &errStr, tBufVec &bufVec) {
     return false;
   }
 
+  uint32_t numSendsCompleted = 0;
   try {
     for (DWORD i = 0; i < numResults; ++i) {
       if (results[i].BytesTransferred) {
@@ -308,12 +330,20 @@ bool RioNetwork::processCompletions(std::string &errStr, tBufVec &bufVec) {
 
           if (!mRio.RIOReceive(mRQ, pBuf, 1, 0, pBuf))
             throw RioException("RIOReceive", WSAGetLastError());
+        } else if (pBuf && (OP_SEND == pBuf->OpType)) {
+          numSendsCompleted++;
         }
       }
     }
   } catch (RioException& err) {
     errStr = err.what();
     return false;
+  }
+
+  if (numSendsCompleted) {
+    std::lock_guard<std::mutex> lk(mMutex);
+    mNumSendsQueued -= numSendsCompleted;
+    mCv.notify_all();
   }
 
   return false;

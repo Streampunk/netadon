@@ -168,25 +168,46 @@ UdpPort.prototype.address = function() {
 }
 
 UdpPort.prototype.send = function(data, offset, length, port, address, cb) {
+  var sendOffset = 0;
+  var sendLength = 0;
+  var sendPort = 0;
+  var sendAddr = '';
+  var sendCb;
+  var curArg = 1;
+
+  if (!Array.isArray(data)) {
+    sendOffset = arguments[curArg++];
+    sendLength = arguments[curArg++];
+  } else if (arguments.length > 4) { // temp support for offset and length being provided...
+    console.log("udpPort send: offset and length should not be provided!!");
+    curArg += 2;
+  }
+
+  sendPort = arguments[curArg++];
+  sendAddr = arguments[curArg++];
+  sendCb = arguments[curArg++]; // optional - may be undefined
+
   try {
     var bufArray;
     if (Buffer.isBuffer(data)) {
       bufArray = new Array(1);
       bufArray[0] = data;
-    }
-    else if (Array.isArray(data))
+    } else if (typeof data === 'string') {
+      bufArray = new Array(1);
+      bufArray[0] = Buffer.from(data);
+    } else if (Array.isArray(data))
       bufArray = data;
     else
       throw ("Expected send buffer not found");
 
-    this.udpPortAdon.send(bufArray, offset, length, port, address, function() {
-      var ba = bufArray.Length; // protect bufArray from GC until callback has fired !!
-      if (typeof cb === 'function')
-        cb(null);
+    this.udpPortAdon.send(bufArray, sendOffset, sendLength, sendPort, sendAddr, function() {
+      var ba = bufArray.length; // protect bufArray from GC until callback has fired !!
+      if (typeof sendCb === 'function')
+        sendCb(null);
     });
   } catch (err) {
-    if (typeof cb === 'function')
-      cb(err);
+    if (typeof sendCb === 'function')
+      sendCb(err);
     else
       this.emit('error', err);
   }
@@ -214,23 +235,42 @@ netadon.createSocket = function (options, cb, packetSize, recvMinPackets, sendMi
     if (process.version.startsWith('v4.')) {
       var simpleSend = sock.send;
       sock.send = function (data, offset, length, port, address, cb) {
+        var sendOffset = 0;
+        var sendLength = 0;
+        var sendPort = 0;
+        var sendAddr = '';
+        var sendCb;
+        var curArg = 1;
+
+        if (!Array.isArray(data)) {
+          sendOffset = arguments[curArg++];
+          sendLength = arguments[curArg++];
+        }
+        sendPort = arguments[curArg++];
+        sendAddr = arguments[curArg++];
+        sendCb = arguments[curArg++]; // optional - may be undefined
+
         var bufArray;
         if (Buffer.isBuffer(data)) {
           bufArray = new Array(1);
           bufArray[0] = data;
-        }
-        else if (Array.isArray(data))
+        } else if (typeof data === 'string') {
+          bufArray = new Array(1);
+          bufArray[0] = Buffer.from(data);
+        } else if (Array.isArray(data))
           bufArray = data;
         else
           throw ("Expected send buffer not found");
 
         // console.log("Sending from buffer of length", bufArray.length);
         bufArray.forEach(function (p) {
-          simpleSend.call(sock, p, 0, p.length, port, address, function (err) {
-            if (err) cb(err);
+          simpleSend.call(sock, p, sendOffset, sendLength?sendLength:p.length, sendPort, sendAddr, function (err) {
+            if (err) sendCb(err);
           });
         });
-        cb();
+
+        if (typeof sendCb === 'function')
+          sendCb();
       }
     }
     return sock;

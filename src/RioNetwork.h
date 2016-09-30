@@ -17,6 +17,8 @@
 #define RIONETWORK_H
 
 #include <memory>
+#include <mutex>
+#include <condition_variable>
 #include "iNetworkDriver.h"
 
 namespace streampunk {
@@ -66,7 +68,11 @@ private:
   EXTENDED_RIO_BUF *mSendBufs;
   EXTENDED_RIO_BUF *mAddrBufs;
   OVERLAPPED mOverlapped;
-  
+  bool mStartup;
+  uint32_t mNumSendsQueued;
+  std::mutex mMutex;
+  std::condition_variable mCv;
+
   void InitialiseWinsock();
   void InitialiseRIO();
 

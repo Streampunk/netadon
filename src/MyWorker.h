@@ -58,14 +58,14 @@ public:
     return val;
   }
 
-  size_t size() {
+  size_t size() const {
     std::lock_guard<std::mutex> lk(m);
     return qu.size();
   }
 
 private:
   std::queue<T> qu;
-  std::mutex m;
+  mutable std::mutex m;
   std::condition_variable cv;
 };
 

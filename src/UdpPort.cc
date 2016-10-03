@@ -50,11 +50,11 @@ public:
 
 class UdpPortSendProcessData : public iProcessData {
 public:
-  UdpPortSendProcessData(const tBufVec &bufVec, uint32_t port, const std::string &addrStr) 
-    : mBufVec(bufVec), mPort(port), mAddrStr(addrStr) {}
+  UdpPortSendProcessData(const tUIntVec &sendVec, uint32_t port, const std::string &addrStr) 
+    : mSendVec(sendVec), mPort(port), mAddrStr(addrStr) {}
   ~UdpPortSendProcessData() {}
 
-  const tBufVec mBufVec;
+  const tUIntVec mSendVec;
   const uint32_t mPort;
   const std::string mAddrStr;
 };
@@ -118,7 +118,7 @@ void UdpPort::doProcess (std::shared_ptr<iProcessData> processData, std::string 
         mIsBound = true;
       }
 
-      mNetwork->Send(uspd->mBufVec, uspd->mPort, uspd->mAddrStr);
+      mNetwork->Send(uspd->mSendVec, uspd->mPort, uspd->mAddrStr);
       mNetwork->CommitSend();
     }
 
@@ -267,13 +267,13 @@ NAN_METHOD(UdpPort::Send) {
       sendBuf += offset;
       bufLen = length;
     }
-
     bufVec.push_back(Memory::makeNew(sendBuf, bufLen));
   } 
 
   UdpPort *obj = Nan::ObjectWrap::Unwrap<UdpPort>(info.Holder());
   try {
-    obj->mWorker->doProcess(std::make_shared<UdpPortSendProcessData>(bufVec, port, *addrStr), obj, callback);
+    tUIntVec sendVec = obj->mNetwork->makeSendPackets(bufVec);
+    obj->mWorker->doProcess(std::make_shared<UdpPortSendProcessData>(sendVec, port, *addrStr), obj, callback);
   } catch (std::runtime_error& err) {
     return Nan::ThrowError(Nan::New(err.what()).ToLocalChecked());
   }

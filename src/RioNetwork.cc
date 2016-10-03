@@ -220,7 +220,30 @@ void RioNetwork::Bind(uint32_t &port, std::string &addrStr) {
   }
 }
 
-void RioNetwork::Send(const tBufVec& bufVec, uint32_t port, std::string addrStr) {
+tUIntVec RioNetwork::makeSendPackets(tBufVec bufVec) {
+  { // Check how many packets are queued and wait if at limit
+    uint32_t numPackets = (uint32_t)bufVec.size();
+    auto& localNumPackets = numPackets;
+    std::unique_lock<std::mutex> lk(mMutex);
+    mCv.wait(lk, [this, localNumPackets]{return mNumSendsQueued + localNumPackets < mSendNumBufs;});
+    mNumSendsQueued += numPackets;
+  }
+
+  tUIntVec sendVec;
+  for (tBufVec::const_iterator it = bufVec.begin(); it != bufVec.end(); ++it) {
+    uint32_t index = InterlockedIncrement(&mSendIndex);
+    EXTENDED_RIO_BUF *pBuf = &mSendBufs[index%mSendNumBufs];
+    uint32_t thisBytes = std::min<uint32_t>((*it)->numBytes(), mPacketSize);
+    if (memcpy_s(mSendBuff->buf() + pBuf->Offset, mPacketSize, (*it)->buf(), thisBytes))
+      throw std::runtime_error("memcpy_s failed");
+    pBuf->Length = thisBytes;
+
+    sendVec.push_back(index%mSendNumBufs);
+  }
+  return sendVec;
+}
+
+void RioNetwork::Send(const tUIntVec& sendVec, uint32_t port, std::string addrStr) {
   SOCKADDR_IN addr;
   addr.sin_family = AF_INET;
   inet_pton(AF_INET, addrStr.c_str(), (void*)&addr.sin_addr);
@@ -232,24 +255,9 @@ void RioNetwork::Send(const tBufVec& bufVec, uint32_t port, std::string addrStr)
   if (memcpy_s(mAddrBuff->buf() + pAddrBuf->Offset, addrPktSize, &addr.sin_family, sizeof(SOCKADDR_IN)))
     throw std::runtime_error("memcpy_s failed");
   
-  // Check how many packets are queued and wait if at limit
-  {
-    uint32_t numPackets = (uint32_t)bufVec.size();
-    auto& localNumPackets = numPackets;
-    std::unique_lock<std::mutex> lk(mMutex);
-    mCv.wait(lk, [this, localNumPackets]{return mNumSendsQueued + localNumPackets < mSendNumBufs;});
-    mNumSendsQueued += numPackets;
-  }
-
   try {
-    for (tBufVec::const_iterator it = bufVec.begin(); it != bufVec.end(); ++it) {
-      uint32_t index = InterlockedIncrement(&mSendIndex);
-      EXTENDED_RIO_BUF *pBuf = &mSendBufs[index%mSendNumBufs];
-      uint32_t thisBytes = std::min<uint32_t>((*it)->numBytes(), mPacketSize);
-      if (memcpy_s(mSendBuff->buf() + pBuf->Offset, mPacketSize, (*it)->buf(), thisBytes))
-        throw std::runtime_error("memcpy_s failed");
-      pBuf->Length = thisBytes;
-
+    for (tUIntVec::const_iterator it = sendVec.begin(); it != sendVec.end(); ++it) {
+      EXTENDED_RIO_BUF *pBuf = &mSendBufs[*it];
       if (!mRio.RIOSendEx(mRQ, pBuf, 1, NULL, pAddrBuf, NULL, NULL, mStartup?0:RIO_MSG_DEFER, pBuf))
         throw RioException("RIOSendEx", WSAGetLastError());
 

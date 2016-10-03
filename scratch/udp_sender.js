@@ -3,7 +3,7 @@ var fs = require('fs');
 
 process.env.UV_THREADPOOL_SIZE = 42;
 
-var frame = fs.readFileSync('./essence/frame3.pgrp');
+var frame = fs.readFileSync(__dirname + '/essence/frame3.pgrp');
 
 var soc = udpPort.createSocket('udp4');
 soc.on('error', (err) => {
@@ -25,7 +25,8 @@ for ( var y = 0 ; y < total  ; y++ ) {
       frame.writeUInt8(96, offset+1);
       frame.writeInt32LE(fnum * 3600 + offset / 1440, offset+2);
       // console.log('writing index', fnum, offset, fnum * 3600 + offset / 1440);
-      frames.push(Buffer.from(frame.slice(offset, offset + 1440)));
+      //frames.push(Buffer.from(frame.slice(offset, offset + 1440)));
+      frames.push(frame.slice(offset, offset + 1440));
     })(x, y);
   }
 

@@ -39,7 +39,8 @@ public:
   void SetBroadcast(bool flag);
   void SetMulticastLoopback(bool flag);
   void Bind(uint32_t &port, std::string &addrStr);
-  void Send(const tBufVec& bufVec, uint32_t port, std::string addrStr);
+  tUIntVec makeSendPackets(tBufVec bufVec);
+  void Send(const tUIntVec& bufVec, uint32_t port, std::string addrStr);
   void CommitSend();
   void Close();
 

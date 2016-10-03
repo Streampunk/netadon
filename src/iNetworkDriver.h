@@ -22,6 +22,7 @@ namespace streampunk {
 
 class Memory;
 typedef std::vector<std::shared_ptr<Memory> > tBufVec;
+typedef std::vector<uint32_t> tUIntVec;
 
 class iNetworkDriver {
 public:
@@ -34,7 +35,8 @@ public:
   virtual void SetBroadcast(bool flag) = 0;
   virtual void SetMulticastLoopback(bool flag) = 0;
   virtual void Bind(uint32_t &port, std::string &addrStr) = 0;
-  virtual void Send(const tBufVec& bufVec, uint32_t port, std::string addrStr) = 0;
+  virtual tUIntVec makeSendPackets(tBufVec bufVec) = 0;
+  virtual void Send(const tUIntVec& bufVec, uint32_t port, std::string addrStr) = 0;
   virtual void CommitSend() = 0;
   virtual void Close() = 0;
 

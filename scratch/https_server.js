@@ -2,6 +2,11 @@ var express = require('express');
 var fs = require('fs');
 var bp = require('body-parser');
 var https = require('https');
+var argv = require('yargs')
+  .default('p', 8901)
+  .number('p')
+  .argv;
+
 process.env.UV_THREADPOOL_SIZE = 42;
 
 var frame = fs.readFileSync('./essence/frame3.pgrp');
@@ -25,6 +30,6 @@ app.post('/essence', function (req, res) {
 var server = https.createServer({
   key : fs.readFileSync('./gonzales.pem'),
   cert : fs.readFileSync('./gonzales-cert.pem')
-}, app).listen(8901);
+}, app).listen(argv.p);
 
-server.on('listening', () => { "Gonzales HTTP server is listening."});
+server.on('listening', () => { `Gonzales HTTP server is listening on port ${argv.p}`});

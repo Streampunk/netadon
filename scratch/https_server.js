@@ -39,6 +39,5 @@ server.on('listening', () => {
 server.on('connection', (s) => {
   console.log(`Gonzales HTTPS server new connection ${s.address().address}.`);
   s.setNoDelay(true);
-  s.setMaxSendFragment(8192);
 });
 server.on('error', console.error);

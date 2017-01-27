@@ -36,8 +36,9 @@ server.on('listening', () => {
   console.log(`Gonzales HTTPS server listining on port ${argv.p}.`);
 });
 
+var date = () => { return new Date().toISOString(); }
 server.on('connection', (s) => {
-  console.log(`Gonzales HTTPS server new connection ${s.address().address}.`);
+  console.log(`${date}: Gonzales HTTPS server new connection ${s.address().address}.`);
   s.setNoDelay(true);
 });
 server.on('error', console.error);

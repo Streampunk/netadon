@@ -5,7 +5,7 @@ var argv = require('yargs')
   .default('p', 8901)
   .default('t', 1)
   .default('n', 100)
-  .number(['p', 'h', 'n'])
+  .number(['p', 't', 'n'])
   .argv;
 
 process.env.UV_THREADPOOL_SIZE = 42;

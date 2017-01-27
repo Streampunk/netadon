@@ -32,4 +32,12 @@ var server = https.createServer({
   cert : fs.readFileSync('./gonzales-cert.pem')
 }, app).listen(argv.p);
 
-server.on('listening', () => { `Gonzales HTTP server is listening on port ${argv.p}`});
+server.on('listening', () => {
+  console.log(`Gonzales HTTPS server listining on port ${argv.p}.`);
+});
+
+server.on('connection', (s) => {
+  console.log(`Gonzales HTTPS server new connection ${s.address().address}.`);
+  s.setNoDelay(true);
+});
+server.on('error', console.error);

@@ -4,16 +4,25 @@ var argv = require('yargs')
   .default('p', 5432)
   .default('t', 1)
   .default('n', 100)
+  .number(['p', 't', 'n'])
   .argv;
+var Agent = require('agentkeepalive');
 
 process.env.UV_THREADPOOL_SIZE = 42;
+
+var keepAliveAgent = new Agent();
 
 var total = 0;
 var tally = 0;
 
 function runNext(x, tally, total) {
-  http.get(`http://${argv.h}:${argv.p}/essence`, (res) => {
-    console.log(`Got response: ${res.statusCode}`);
+  http.get({
+    agent : keepAliveAgent,
+    hostname: argv.h,
+    port: argv.p,
+    path: '/essence'
+  }, (res) => {
+    // console.log(`Got response: ${res.statusCode}`);
     // consume response body
     var startTime = process.hrtime();
     var count = 0;

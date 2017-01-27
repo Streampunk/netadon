@@ -1,4 +1,5 @@
 var https = require('https');
+var HttpsAgent = require('agentkeepalive').HttpsAgent;
 var argv = require('yargs')
   .default('h', 'localhost')
   .default('p', 8901)
@@ -8,18 +9,21 @@ var argv = require('yargs')
   .argv;
 
 process.env.UV_THREADPOOL_SIZE = 42;
+console.log(argv);
+var keepAliveAgent = new HttpsAgent();
 
 var total = 0;
 var tally = 0;
 
 function runNext(x, tally, total) {
   https.get({
+    agent: keepAliveAgent,
     rejectUnauthorized : false,
     hostname: argv.h,
     port: argv.p,
     path: '/essence'
   }, (res) => {
-    console.log(`Got response: ${res.statusCode}`);
+    //console.log(`Got response: ${res.statusCode}`, keepAliveAgent.getCurrentStatus());
     // consume response body
     var startTime = process.hrtime();
     var count = 0;
@@ -37,6 +41,6 @@ function runNext(x, tally, total) {
   });
 }
 
-for ( var x = 0 ; x < argv.y ; x ++) {
+for ( var x = 0 ; x < argv.t ; x ++) {
   runNext(x, tally, total);
 }

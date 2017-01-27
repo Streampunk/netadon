@@ -1,11 +1,15 @@
 var express = require('express');
+var http = require('http');
 var fs = require('fs');
 var bp = require('body-parser');
 var argv = require('yargs')
   .default('p', 5432)
   .number('p')
   .argv;
+
 process.env.UV_THREADPOOL_SIZE = 42;
+
+var frame = fs.readFileSync('./essence/frame3.pgrp');
 
 var app = express();
 app.use(bp.raw({ limit : 6000000 }));
@@ -23,6 +27,14 @@ app.post('/essence', function (req, res) {
   res.json({ wibble : 'wibble' });
 });
 
-app.listen(argv.p, function() {
+var server = http.createServer(app).listen(argv.p);
+
+server.on('listening', () => {
   console.log(`Gonzales listening on port ${argv.p}.`);
+});
+
+var date = () => { return new Date().toISOString(); }
+server.on('connection', (s) => {
+  console.log(`${date()}: Gonzales HTTP server new connection ${s.address().address}.`);
+  s.setNoDelay(true);
 });

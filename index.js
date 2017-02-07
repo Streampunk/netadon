@@ -16,8 +16,8 @@
 'use strict';
 var netAdon = require('bindings')('./Release/netadon');
 
-// var SegfaultHandler = require('../node-segfault-handler');
-// SegfaultHandler.registerHandler("crash.log");
+var SegfaultHandler = require('segfault-handler');
+SegfaultHandler.registerHandler("crash.log");
 
 var dgram = require('dgram');
 const util = require('util');
@@ -225,6 +225,15 @@ UdpPort.prototype.close = function(cb) {
 }
 
 function netadon() {}
+
+netadon.setSocketRecvBuffer = function(socket, numBytes) {
+  netAdon.setSocketRecvBuffer(socket._handle, numBytes);
+}
+
+netadon.setSocketSendBuffer = function(socket, numBytes) {
+  netAdon.setSocketSendBuffer(socket._handle, numBytes);
+}
+
 netadon.createSocket = function (options, cb, packetSize, recvMinPackets, sendMinPackets) {
   try {
     var sock = new UdpPort (options, cb, packetSize, recvMinPackets, sendMinPackets);

@@ -16,8 +16,8 @@
 'use strict';
 var netAdon = require('bindings')('./Release/netadon');
 
-var SegfaultHandler = require('segfault-handler');
-SegfaultHandler.registerHandler("crash.log");
+//var SegfaultHandler = require('segfault-handler');
+//SegfaultHandler.registerHandler("crash.log");
 
 var dgram = require('dgram');
 const util = require('util');

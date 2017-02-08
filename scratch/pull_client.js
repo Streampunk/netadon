@@ -5,8 +5,9 @@ var argv = require('yargs')
   .default('h', 'localhost')
   .default('p', 5432)
   .default('t', 1)
-  .default('n', 10)
-  .number(['p', 't', 'n'])
+  .default('n', 100)
+  .default('b', 65535)
+  .number(['p', 't', 'n', 'b'])
   .argv;
 
 process.env.UV_THREADPOOL_SIZE = 42;
@@ -20,8 +21,8 @@ var agent = new http.Agent(options);
 agent.createConnection = function (options, cb) {
   var socket = net.createConnection(options, cb);
   socket.on('connect', () => {
-    netadon.setSocketRecvBuffer(socket, 65535);
-    netadon.setSocketSendBuffer(socket, 65535);
+    netadon.setSocketRecvBuffer(socket, argv.b);
+    netadon.setSocketSendBuffer(socket, argv.b);
   });
   return socket;
 };

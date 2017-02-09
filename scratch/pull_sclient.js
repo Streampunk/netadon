@@ -8,7 +8,9 @@ var argv = require('yargs')
   .default('t', 1)
   .default('n', 100)
   .default('b', 65535)
+  .default('N', true)
   .number(['p', 't', 'n', 'b'])
+  .boolean('N')
   .argv;
 
 process.env.UV_THREADPOOL_SIZE = 42;
@@ -22,6 +24,7 @@ var agent = new https.Agent(options);
 agent.createConnection = function (options) {
   var socket = net.createConnection(options);
   socket.on('connect', () => {
+    socket.setNoDelay(argv.N);
     netadon.setSocketRecvBuffer(socket, argv.b);
     netadon.setSocketSendBuffer(socket, argv.b);
   });

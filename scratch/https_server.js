@@ -6,7 +6,9 @@ var netadon = require('../../netadon');
 var argv = require('yargs')
   .default('p', 8901)
   .default('b', 65535)
+  .default('N', true)
   .number(['p', 'b'])
+  .boolean('N')
   .argv;
 
 process.env.UV_THREADPOOL_SIZE = 42;
@@ -41,7 +43,7 @@ server.on('listening', () => {
 var date = () => { return new Date().toISOString(); }
 server.on('connection', (s) => {
   console.log(`${date()}: Gonzales HTTPS server new connection ${s.address().address}.`);
-  s.setNoDelay(true);
+  s.setNoDelay(argv.N);
   netadon.setSocketRecvBuffer(s, argv.b);
   netadon.setSocketSendBuffer(s, argv.b);
 });

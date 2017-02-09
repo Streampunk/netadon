@@ -9,14 +9,15 @@ var argv = require('yargs')
   .default('n', 100)
   .default('b', 65535)
   .default('N', true)
+  .default('k', true)
   .number(['p', 't', 'n', 'b'])
-  .boolean('N')
+  .boolean(['N', 'k'])
   .argv;
 
 process.env.UV_THREADPOOL_SIZE = 42;
 
 var options = {
-  keepAlive: true,
+  keepAlive: argv.k,
   maxSockets: 10
 };
 

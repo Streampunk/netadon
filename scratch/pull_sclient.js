@@ -1,23 +1,40 @@
 var https = require('https');
-var HttpsAgent = require('agentkeepalive').HttpsAgent;
+var net = require('net');
+var tls = require('tls');
+var netadon = require('../../netadon');
 var argv = require('yargs')
   .default('h', 'localhost')
   .default('p', 8901)
   .default('t', 1)
-  .default('n', 100)
-  .number(['p', 't', 'n'])
+  .default('n', 10)
+  .default('b', 65535)
+  .number(['p', 't', 'n', 'b'])
   .argv;
 
 process.env.UV_THREADPOOL_SIZE = 42;
-console.log(argv);
-var keepAliveAgent = new HttpsAgent();
+
+var options = {
+  keepAlive: true,
+  maxSockets: 10
+};
+
+var agent = new https.Agent(options);
+agent.createConnection = function (options) {
+  var socket = new net.createConnection(options);
+  socket.on('connect', () => {
+    netadon.setSocketRecvBuffer(socket, argv.b);
+    netadon.setSocketSendBuffer(socket, argv.b);
+  });
+  options.socket = socket;
+  return tls.connect(options);
+}
 
 var total = 0;
 var tally = 0;
 
 function runNext(x, tally, total) {
   https.get({
-    agent: keepAliveAgent,
+    agent: agent,
     rejectUnauthorized : false,
     hostname: argv.h,
     port: argv.p,

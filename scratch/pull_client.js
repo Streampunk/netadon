@@ -18,14 +18,14 @@ var options = {
 };
 
 var agent = new http.Agent(options);
-agent.createConnection = function (options, cb) {
-  var socket = net.createConnection(options, cb);
+agent.createConnection = function (options) {
+  var socket = net.createConnection(options);
   socket.on('connect', () => {
     netadon.setSocketRecvBuffer(socket, argv.b);
     netadon.setSocketSendBuffer(socket, argv.b);
   });
   return socket;
-};
+}
 
 var total = 0;
 var tally = 0;

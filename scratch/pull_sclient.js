@@ -6,7 +6,7 @@ var argv = require('yargs')
   .default('h', 'localhost')
   .default('p', 8901)
   .default('t', 1)
-  .default('n', 10)
+  .default('n', 100)
   .default('b', 65535)
   .number(['p', 't', 'n', 'b'])
   .argv;
@@ -20,7 +20,7 @@ var options = {
 
 var agent = new https.Agent(options);
 agent.createConnection = function (options) {
-  var socket = new net.createConnection(options);
+  var socket = net.createConnection(options);
   socket.on('connect', () => {
     netadon.setSocketRecvBuffer(socket, argv.b);
     netadon.setSocketSendBuffer(socket, argv.b);

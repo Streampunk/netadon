@@ -35,6 +35,7 @@ var total = 0;
 var tally = 0;
 
 function runNext(x, tally, total) {
+  var startTime = process.hrtime();
   http.get({
     agent : agent,
     hostname: argv.h,
@@ -43,7 +44,6 @@ function runNext(x, tally, total) {
   }, (res) => {
     // console.log(`Got response: ${res.statusCode}`);
     // consume response body
-    var startTime = process.hrtime();
     var count = 0;
     res.on('data', (x) => {
       count++;// console.log(x.length);

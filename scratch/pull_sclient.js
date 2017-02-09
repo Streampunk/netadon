@@ -37,6 +37,7 @@ var total = 0;
 var tally = 0;
 
 function runNext(x, tally, total) {
+  var startTime = process.hrtime();
   https.get({
     agent: agent,
     rejectUnauthorized : false,
@@ -46,7 +47,6 @@ function runNext(x, tally, total) {
   }, (res) => {
     //console.log(`Got response: ${res.statusCode}`, keepAliveAgent.getCurrentStatus());
     // consume response body
-    var startTime = process.hrtime();
     var count = 0;
     res.on('data', (x) => {
       count++;// console.log(x.length);

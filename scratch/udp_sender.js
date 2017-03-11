@@ -15,8 +15,20 @@ var total = +process.argv[2];
 var count = 0;
 
 //soc.bind(6789, "192.168.1.12", () => {
+var y = 0;
 
-for ( var y = 0 ; y < total  ; y++ ) {
+function doit() {
+  var diffTime = process.hrtime(begin);
+  var diff = y * 40 - (diffTime[0] * 1000 + diffTime[1] / 1000000|0);
+  console.log(y * 40, diffTime, diffTime[0] * 1000 + diffTime[1] / 1000000|0, diff);
+  setTimeout(() => {
+    sendFrame(y);
+    y++;
+    if (y < total) doit();
+  }, diff > 0 ? diff : 0);
+}
+
+function sendFrame(y) {
   var startTime = process.hrtime();
   var frames = [];
   for ( var x = 0 ; x < frame.length ; x += 1440 ) {
@@ -42,6 +54,7 @@ for ( var y = 0 ; y < total  ; y++ ) {
 }
 
 //});
+doit();
 
 process.on('exit', () => {
   var totalTime = process.hrtime(begin);

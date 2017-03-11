@@ -1,4 +1,4 @@
-/* Copyright 2016 Streampunk Media Ltd.
+/* Copyright 2017 Streampunk Media Ltd.
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -49,15 +49,15 @@ function UdpPort(options, cb, packetSize, recvMinPackets, sendMinPackets) {
   }
 
   this.udpPortAdon = new netAdon.UdpPort(optionsObj, rioPacketSize, rioRecvMinPackets, rioSendMinPackets,
-  function(err, data) {
+  (err, data) => {
     if (err)
       this.emit('error', err);
     else if (data)
       this.emit('message', data);
     else
       this.emit('close');
-  }.bind(this),
-  function() {
+  },
+  () => {
     console.log('UdpPort exiting');
   });
   if (typeof rioCb === 'function')
@@ -144,7 +144,7 @@ UdpPort.prototype.bind = function(port, address, cb) {
   }
 
   try {
-    this.udpPortAdon.bind(bindPort, bindAddr, function(err, port, addr) {
+    this.udpPortAdon.bind(bindPort, bindAddr, (err, port, addr) => {
       if (err)
         this.emit('error', err);
       else {
@@ -154,7 +154,7 @@ UdpPort.prototype.bind = function(port, address, cb) {
           bindCb(null);
         }
       }
-    }.bind(this));
+    });
   } catch (err) {
     if (typeof bindCb === 'function')
       bindCb(err);
@@ -200,7 +200,7 @@ UdpPort.prototype.send = function(data, offset, length, port, address, cb) {
     else
       throw ("Expected send buffer not found");
 
-    this.udpPortAdon.send(bufArray, sendOffset, sendLength, sendPort, sendAddr, function() {
+    this.udpPortAdon.send(bufArray, sendOffset, sendLength, sendPort, sendAddr, () => {
       var ba = bufArray.length; // protect bufArray from GC until callback has fired !!
       if (typeof sendCb === 'function')
         sendCb(null);
@@ -272,8 +272,8 @@ netadon.createSocket = function (options, cb, packetSize, recvMinPackets, sendMi
           throw ("Expected send buffer not found");
 
         // console.log("Sending from buffer of length", bufArray.length);
-        bufArray.forEach(function (p) {
-          simpleSend.call(sock, p, sendOffset, sendLength?sendLength:p.length, sendPort, sendAddr, function (err) {
+        bufArray.forEach((p) => {
+          simpleSend.call(sock, p, sendOffset, sendLength?sendLength:p.length, sendPort, sendAddr, (err) => {
             if (err) sendCb(err);
           });
         });

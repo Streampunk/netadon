@@ -10,6 +10,8 @@ soc.on('error', (err) => {
   //console.log(`server error: ${err}`);
 });
 
+soc.setMulticastTTL(128);
+
 var begin = process.hrtime();
 var total = +process.argv[2];
 var count = 0;

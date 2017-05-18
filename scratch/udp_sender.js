@@ -22,7 +22,7 @@ var y = 0;
 function doit() {
   var diffTime = process.hrtime(begin);
   var diff = y * 40 - (diffTime[0] * 1000 + diffTime[1] / 1000000|0);
-  console.log(y * 40, diffTime, diffTime[0] * 1000 + diffTime[1] / 1000000|0, diff);
+  // console.log(y * 40, diffTime, diffTime[0] * 1000 + diffTime[1] / 1000000|0, diff);
   setTimeout(() => {
     sendFrame(y);
     y++;
@@ -48,11 +48,11 @@ function sendFrame(y) {
     if (err)
       console.log(`send error: ${err}`);
     count++;
-    console.log(count, process.hrtime(begin));
+    // console.log(count, process.hrtime(begin));
     if (count === total) soc.close();
   });
 
-  console.log('Finished', y, process.hrtime(begin));
+  // console.log('Finished', y, process.hrtime(begin));
 }
 
 //});

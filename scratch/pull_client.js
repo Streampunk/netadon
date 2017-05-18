@@ -51,8 +51,13 @@ function runNext(x, tally, total) {
     res.on('end', () => {
       total++;
       tally += process.hrtime(startTime)[1]/1000000;
-      console.log("No more data!", tally / total, total, x, count);
-      if (total < argv.n) runNext(x, tally, total);
+      if (total % 100 === 0)
+        console.log(`Thread $x: total = ${total}, avg = ${tally/total}, chunks/frame = ${count}`);
+      if (total < argv.n) {
+        runNext(x, tally, total)
+      } else {
+        console.log(`Finished thread $x: total = ${total}, avg = ${tally/total}, chunks/frame = ${count}`);
+      }
     });
   }).on('error', (e) => {
     console.log(`Got error: ${e.message}`);

@@ -16,11 +16,11 @@ var pktCount = 0;
 var seq = -1;
 var discount = 0;
 soc.on('message', (msg, rinfo) => {
-  if (1440 != msg.length) 
+  if (1440 != msg.length)
     console.log(msg.length);
   var pktSeq = msg.readInt32LE(2);
   if (pktSeq - seq > 1) {
-    console.log(`Discontinuity ${seq.toString(16)}->${pktSeq.toString(16)}`);
+    // console.log(`Discontinuity ${seq.toString(16)}->${pktSeq.toString(16)}`);
     discount += pktSeq - seq - 1;
   }
   seq = pktSeq;

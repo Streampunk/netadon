@@ -2,7 +2,8 @@ var http = require('http');
 var net = require('net');
 var netadon = require('../../netadon');
 var argv = require('yargs')
-  .default('h', 'localhost')
+  .demandOption(['h'])
+  .help('help')
   .default('p', 5432)
   .default('t', 1)
   .default('n', 100)
@@ -11,7 +12,18 @@ var argv = require('yargs')
   .default('k', true)
   .default('i', 100)
   .number(['p', 't', 'n', 'b', 'i'])
-  .boolean('N')
+  .boolean(['N', 'k'])
+  .usage('Pull frames from a server via HTTP.\n' +
+    'Usage: $0 [options]')
+  .describe('h', 'Hostname to connect to.')
+  .describe('p', 'Port number to connect to.')
+  .describe('t', 'Number of parrallel connections to use.')
+  .describe('n', 'Number of frames to send.')
+  .describe('b', 'TCP send and receive buffer sizes.')
+  .describe('N', 'Disable Nagle\'s algorithm.')
+  .describe('k', 'Use socket keep alive.')
+  .describe('i', 'Interval between logging messages.')
+  .example('$0 -h server -t 4 -n 1000')
   .argv;
 
 process.env.UV_THREADPOOL_SIZE = 42;
@@ -35,7 +47,7 @@ agent.createConnection = function (options) {
 var total = 0;
 var tally = 0;
 
-function runNext(x, tally, total) {
+function runNext(x, tally, total, intervalTally) {
   var startTime = process.hrtime();
   http.get({
     agent : agent,
@@ -43,19 +55,21 @@ function runNext(x, tally, total) {
     port: argv.p,
     path: '/essence'
   }, (res) => {
-    // console.log(`Got response: ${res.statusCode}`);
-    // consume response body
     var count = 0;
     res.on('data', (x) => {
-      count++;// console.log(x.length);
+      count++;
     });
     res.on('end', () => {
       total++;
-      tally += process.hrtime(startTime)[1]/1000000;
-      if (total % argv.i === 0)
-        console.log(`Thread ${x}: total = ${total}, avg = ${tally/total}, chunks/frame = ${count}`);
+      var frameTime = process.hrtime(startTime)[1]/1000000;
+      tally += frameTime;
+      if (total % argv.i === 0) {
+        console.log(`Thread ${x}: total = ${total}, avg = ${tally/total}, intervalAvg = ${intervalTally/argv.i}, chunks/frame = ${count}`);
+        intervalTally = 0.0;
+      }
       if (total < argv.n) {
-        runNext(x, tally, total)
+        intervalTally += frameTime;
+        runNext(x, tally, total, intervalTally);
       } else {
         console.log(`Finished thread ${x}: total = ${total}, avg = ${tally/total}, chunks/frame = ${count}`);
       }
@@ -66,5 +80,5 @@ function runNext(x, tally, total) {
 }
 
 for ( var x = 0 ; x < argv.t ; x ++) {
-  runNext(x, tally, total);
+  runNext(x, tally, total, 0.0);
 }

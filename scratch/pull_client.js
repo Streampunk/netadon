@@ -9,7 +9,8 @@ var argv = require('yargs')
   .default('b', 65535)
   .default('N', true)
   .default('k', true)
-  .number(['p', 't', 'n', 'b'])
+  .default('i', 100)
+  .number(['p', 't', 'n', 'b', 'i'])
   .boolean('N')
   .argv;
 
@@ -51,12 +52,12 @@ function runNext(x, tally, total) {
     res.on('end', () => {
       total++;
       tally += process.hrtime(startTime)[1]/1000000;
-      if (total % 100 === 0)
-        console.log(`Thread $x: total = ${total}, avg = ${tally/total}, chunks/frame = ${count}`);
+      if (total % argv.i === 0)
+        console.log(`Thread ${x}: total = ${total}, avg = ${tally/total}, chunks/frame = ${count}`);
       if (total < argv.n) {
         runNext(x, tally, total)
       } else {
-        console.log(`Finished thread $x: total = ${total}, avg = ${tally/total}, chunks/frame = ${count}`);
+        console.log(`Finished thread ${x}: total = ${total}, avg = ${tally/total}, chunks/frame = ${count}`);
       }
     });
   }).on('error', (e) => {

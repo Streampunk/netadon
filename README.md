@@ -1,7 +1,7 @@
 # Netadon
 
 Netadon is a [Node.js](http://nodejs.org/) [addon](http://nodejs.org/api/addons.html) using Javascript and C++ to implement optimised UDP networking.
-Currently only Windows hosts, UDP and IPv4 are supported. 
+Currently only Windows hosts, UDP and IPv4 are supported.
 
 ## Installation
 
@@ -20,7 +20,7 @@ The functions are intended to follow the interface of the Node.js dgram module w
 
 ```javascript
 var netadon = require('netadon');
-var udpPort = netadon.createSocket('udp4', packetSize, numPacketsRecv, numPacketsSend); 
+var udpPort = netadon.createSocket('udp4', packetSize, numPacketsRecv, numPacketsSend);
 
 udpPort.on('error', (err) => {
   console.log(`server error: ${err}`);
@@ -48,4 +48,4 @@ Contributions can be made via pull requests and will be considered by the author
 
 ## License
 
-This software is released under the Apache 2.0 license. Copyright 2016 Streampunk Media Ltd.
+This software is released under the Apache 2.0 license. Copyright 2017 Streampunk Media Ltd.

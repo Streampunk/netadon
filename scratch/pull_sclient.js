@@ -4,7 +4,7 @@ var tls = require('tls');
 var netadon = require('../../netadon');
 var argv = require('yargs')
 .demandOption(['h'])
-.help('help')
+.help()
 .default('p', 5432)
 .default('t', 1)
 .default('n', 100)

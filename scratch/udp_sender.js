@@ -54,7 +54,9 @@ soc.on('error', (err) => {
   console.error(`server error: ${err}`);
 });
 
-soc.setMulticastTTL(argv.ttl);
+soc.on('listening', () => {
+  soc.setMulticastTTL(argv.ttl);
+});
 
 var begin = process.hrtime();
 var total = argv.n;

@@ -13,22 +13,51 @@
   limitations under the License.
 */
 
-var udpPort = require('../../netadon');
+var netadon = require('../../netadon');
+var dgram = require('dgram');
 var fs = require('fs');
+var argv = require('yargs')
+  .default('p', 6789)
+  .default('a', '234.5.6.7')
+  .default('rio', true)
+  .default('f', 5184000)
+  .default('n', 100)
+  .default('s', 40)
+  .default('ttl', 128)
+  .number(['p', 'f', 'n', 's', 'ttl'])
+  .boolean('rio')
+  .usage('Send a test stream over UDP, counting the number of dropped packets.\n' +
+    'Usage: $0 ')
+  .help()
+  .describe('a', 'Address of multicast group to join.')
+  .describe('p', 'Port of multicast group to join.')
+  .describe('i', 'Multicast interface card.')
+  .describe('rio', 'Use Windows RIO for acceleration.')
+  .describe('n', 'Number of frames to send.')
+  .describe('s', 'Spacing between frames, measured in miliseconds.')
+  .describe('ttl', 'Multicsat TTL.')
+  .describe('f', 'Bytes per frame - default is 1080i25 10-bit.')
+  .example('$0 -f 2304000 -i 10.11.12.13 -s 16.68333 for 720p60')
+  .example('$0 -f 829440 -i 10.11.12.13 for 576i25')
+  .argv;
 
 process.env.UV_THREADPOOL_SIZE = 42;
 
-var frame = fs.readFileSync(__dirname + '/essence/frame3.pgrp');
+var udpPort = (argv.rio) ? netadon : dgram;
+
+var data = fs.readFileSync('./essence/frame3.pgrp');
+var frame = Buffer.concat([data, data, data, data]).slice(0, argv.f);
 
 var soc = udpPort.createSocket('udp4');
+
 soc.on('error', (err) => {
-  //console.log(`server error: ${err}`);
+  console.error(`server error: ${err}`);
 });
 
-soc.setMulticastTTL(128);
+soc.setMulticastTTL(argv.ttl);
 
 var begin = process.hrtime();
-var total = +process.argv[2];
+var total = argv.n;
 var count = 0;
 
 //soc.bind(6789, "192.168.1.12", () => {
@@ -36,13 +65,13 @@ var y = 0;
 
 function doit() {
   var diffTime = process.hrtime(begin);
-  var diff = y * 40 - (diffTime[0] * 1000 + diffTime[1] / 1000000|0);
+  var diff = y * argv.s - (diffTime[0] * 1000 + diffTime[1] / 1000000|0);
   // console.log(y * 40, diffTime, diffTime[0] * 1000 + diffTime[1] / 1000000|0, diff);
   setTimeout(() => {
     sendFrame(y);
     y++;
     if (y < total) doit();
-  }, diff > 0 ? diff : 0);
+  }, diff > 0 ? diff|0 : 0);
 }
 
 function sendFrame(y) {
@@ -59,7 +88,7 @@ function sendFrame(y) {
     })(x, y);
   }
 
-  soc.send(frames, 6789, '234.5.6.7', (err) => {
+  soc.send(frames, argv.p, argv.a, (err) => {
     if (err)
       console.log(`send error: ${err}`);
     count++;

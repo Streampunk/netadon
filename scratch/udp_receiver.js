@@ -13,18 +13,43 @@
   limitations under the License.
 */
 
-var udpPort = require('../../netadon');
+var netadon = require('../../netadon');
+var dgram = require('dgram');
+var argv = require('yargs')
+  .default('p', 6789)
+  .default('a', '234.5.6.7')
+  .default('rio', true)
+  .demandOption(['i'])
+  .number('p')
+  .boolean('rio')
+  .usage('Receive a test stream over UDP, counting the number of dropped packets.\n' +
+    'Usage: $0 ')
+  .help()
+  .describe('a', 'Address of multicast group to join.')
+  .describe('p', 'Port of multicast group to join.')
+  .describe('i', 'Multicast interface card.')
+  .describe('rio', 'Use Windows RIO for acceleration.')
+  .argv;
 
 process.env.UV_THREADPOOL_SIZE = 42;
+
+var udpPort = (argv.rio) ? netadon : dgram;
 
 var soc = udpPort.createSocket('udp4');
 soc.on('error', (err) => {
   console.log(`server error: ${err}`);
 });
 
-soc.bind(6789, () => {
-  soc.addMembership('234.5.6.7');
-  console.log("socket bound");
+soc.bind(argv.p);
+
+function isMulticast(x) {
+  var firstByte = +x.slice(0, 3);
+  return !isNaN(firstByte) && firstByte >= 224 && firstByte <= 239;
+}
+
+soc.on('listening', () => {
+  if (isMulticast(argv.a)) soc.addMembership(argv.a, argv.i);
+  console.log(`Bound to socket ${argv.p}, joined group ${argv.a} on interface ${argv.i}.`);
 });
 
 var pktCount = 0;

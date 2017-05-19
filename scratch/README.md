@@ -17,6 +17,10 @@ Having unpacked this folder, including the `essence` sub-folder, run:
 
     npm install
 
+For multi-threaded testing, make sure that the `UV_THREADPOOL_SIZE` environment is set high enough. For example:
+
+    export UV_THREADPOOL_SIZE=42
+
 ## Running
 
 The Javascript applications in this folder are designed to be self describing when run with `node`. Each one has a `--help` option that prints out the available options and provides the default values.

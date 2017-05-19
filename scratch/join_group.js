@@ -18,7 +18,7 @@ var argv = require('yargs')
   .default('p', 6789)
   .default('a', '234.5.6.7')
   .demandOption(['i'])
-  .number('a')
+  .number('p')
   .usage('Join a multicast group. Useful for wireshark testing.\n' +
     'Usage: $0 ')
   .help()

@@ -28,9 +28,12 @@ var argv = require('yargs')
 
 var socket = dgram.createSocket('udp4');
 
-socket.addMembership(argv.a, argv.i);
+// Uncomment this line to see the effect of joining the group prior to the bind
+// socket.addMembership(argv.a, argv.i);
 
 socket.on('listening', () => {
+  // Comment this line to see the effect of joining the group prior to the bind
+  socket.addMembership(argv.a, argv.i);
   console.log('Multicast group subscribed and listening.');
 });
 

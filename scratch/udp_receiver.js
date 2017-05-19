@@ -19,7 +19,6 @@ var argv = require('yargs')
   .default('p', 6789)
   .default('a', '234.5.6.7')
   .default('rio', true)
-  .demandOption(['i'])
   .number('p')
   .boolean('rio')
   .usage('Receive a test stream over UDP, counting the number of dropped packets.\n' +

@@ -67,7 +67,7 @@ public:
 
 UdpPort::UdpPort(std::string ipType, bool reuseAddr, uint32_t packetSize, uint32_t recvMinPackets, uint32_t sendMinPackets, 
                  Nan::Callback *portCallback, Nan::Callback *callback) 
-  : mWorker(new MyWorker(callback, portCallback)), mIsBound(false),
+  : mWorker(new MyWorker(callback, portCallback)),
     mNetwork(NetworkFactory::createNetwork(ipType, reuseAddr, packetSize, recvMinPackets, sendMinPackets)),
     mListenThread(std::thread(&UdpPort::listenLoop, this)) {
   AsyncQueueWorker(mWorker);
@@ -105,19 +105,10 @@ void UdpPort::doProcess (std::shared_ptr<iProcessData> processData, std::string 
       mNetwork->Bind(ubpd->mPort, ubpd->mAddrStr);
       port = ubpd->mPort;
       addrStr = ubpd->mAddrStr;
-      mIsBound = true;
     }
 
     std::shared_ptr<UdpPortSendProcessData> uspd = std::dynamic_pointer_cast<UdpPortSendProcessData>(processData);
     if (uspd) {
-      if (!mIsBound) {
-        uint32_t port = 0;
-        std::string addr;
-        mNetwork->Bind(port, addr);
-        printf ("Bind to %s:%d\n", addr.c_str(), port);
-        mIsBound = true;
-      }
-
       mNetwork->Send(uspd->mSendVec, uspd->mPort, uspd->mAddrStr);
       mNetwork->CommitSend();
     }
@@ -219,7 +210,7 @@ NAN_METHOD(UdpPort::SetMulticastLoopback) {
 
 NAN_METHOD(UdpPort::Bind) {
   if (info.Length() != 3)
-    return Nan::ThrowError("UdpPort Bind expects 4 arguments");
+    return Nan::ThrowError("UdpPort Bind expects 3 arguments");
   if (!info[2]->IsFunction())
     return Nan::ThrowError("UdpPort Bind requires a valid callback as the third parameter");
 

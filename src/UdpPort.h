@@ -100,7 +100,6 @@ private:
   static NAN_METHOD(Close);
 
   MyWorker *mWorker;
-  uint32_t mIsBound;
   std::shared_ptr<iNetworkDriver> mNetwork;
   std::thread mListenThread;
 };

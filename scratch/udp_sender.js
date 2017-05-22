@@ -56,14 +56,11 @@ soc.on('error', (err) => {
   console.error(`server error: ${err}`);
 });
 
-if (argv.rio) {
+soc.on('listening', () => {
   soc.setMulticastTTL(argv.ttl);
-} else {
-  soc.on('listening', () => {
-    soc.setMulticastTTL(argv.ttl);
-  });
-}
-
+  var address = soc.address();
+  console.log(`server listening ${address.address}:${address.port}`);
+});
 
 var begin = process.hrtime();
 var total = argv.n;

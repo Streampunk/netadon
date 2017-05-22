@@ -63,6 +63,7 @@ function UdpPort(options, cb, packetSize, recvMinPackets, sendMinPackets) {
   if (typeof rioCb === 'function')
     this.on('message', rioCb);
 
+  this.isBound = false;
   EventEmitter.call(this);
 }
 
@@ -155,6 +156,7 @@ UdpPort.prototype.bind = function(port, address, cb) {
         }
       }
     });
+    this.isBound = true;
   } catch (err) {
     if (typeof bindCb === 'function')
       bindCb(err);
@@ -187,6 +189,9 @@ UdpPort.prototype.send = function(data, offset, length, port, address, cb) {
   sendAddr = arguments[curArg++];
   sendCb = arguments[curArg++]; // optional - may be undefined
 
+  if (!this.isBound)
+    this.bind();
+  
   try {
     var bufArray;
     if (Buffer.isBuffer(data)) {

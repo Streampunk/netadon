@@ -24,7 +24,8 @@ var argv = require('yargs')
   .default('n', 100)
   .default('s', 40)
   .default('ttl', 128)
-  .number(['p', 'f', 'n', 's', 'ttl'])
+  .default('b', 1440)
+  .number(['p', 'f', 'n', 's', 'ttl', 'b'])
   .boolean('rio')
   .usage('Send a test stream over UDP, counting the number of dropped packets.\n' +
     'Usage: $0 ')
@@ -37,6 +38,7 @@ var argv = require('yargs')
   .describe('s', 'Spacing between frames, measured in miliseconds.')
   .describe('ttl', 'Multicsat TTL.')
   .describe('f', 'Bytes per frame - default is 1080i25 10-bit.')
+  .describe('b', 'Bytes per packet.')
   .example('$0 -f 2304000 -i 10.11.12.13 -s 16.68333 for 720p60')
   .example('$0 -f 829440 -i 10.11.12.13 for 576i25')
   .argv;
@@ -54,9 +56,14 @@ soc.on('error', (err) => {
   console.error(`server error: ${err}`);
 });
 
-soc.on('listening', () => {
+if (argv.rio) {
   soc.setMulticastTTL(argv.ttl);
-});
+} else {
+  soc.on('listening', () => {
+    soc.setMulticastTTL(argv.ttl);
+  });
+}
+
 
 var begin = process.hrtime();
 var total = argv.n;
@@ -76,27 +83,48 @@ function doit() {
   }, diff > 0 ? diff|0 : 0);
 }
 
+var packetsPerFrame = argv.f / argv.b|0;
+
 function sendFrame(y) {
   var startTime = process.hrtime();
   var frames = [];
-  for ( var x = 0 ; x < frame.length ; x += 1440 ) {
+  for ( var x = 0 ; x < frame.length ; x += argv.b ) {
     (function (offset, fnum) {
-      frame.writeUInt8(0x80, offset);
-      frame.writeUInt8(96, offset+1);
-      frame.writeInt32LE(fnum * 3600 + offset / 1440, offset+2);
-      // console.log('writing index', fnum, offset, fnum * 3600 + offset / 1440);
-      //frames.push(Buffer.from(frame.slice(offset, offset + 1440)));
-      frames.push(frame.slice(offset, offset + 1440));
+      if (frame.length > offset + 6) {
+        frame.writeUInt8(0x80, offset);
+        frame.writeUInt8(96, offset+1);
+        frame.writeInt32LE(fnum * packetsPerFrame + offset / argv.b|0, offset+2);
+        // console.log('writing index', fnum, offset, fnum * 3600 + offset / 1440);
+        //frames.push(Buffer.from(frame.slice(offset, offset + 1440)));
+        frames.push(frame.slice(offset, offset + argv.b));
+      } else {
+        var extFrame = Buffer.alloc(6);
+        extFrame.writeUInt8(0x80, 0);
+        extFrame.writeUInt8(96, 1);
+        extFrame.writeInt32LE(fnum * packetsPerFrame + offset / argv.b|0, 2);
+        frames.push(extFrame);
+      }
     })(x, y);
   }
 
-  soc.send(frames, argv.p, argv.a, (err) => {
-    if (err)
-      console.log(`send error: ${err}`);
-    count++;
-    // console.log(count, process.hrtime(begin));
-    if (count === total) soc.close();
-  });
+  if (argv.rio) {
+    soc.send(frames, argv.p, argv.a, (err) => {
+      if (err)
+        console.log(`send error: ${err}`);
+      count++;
+      // console.log(count, process.hrtime(begin));
+      if (count === total) soc.close();
+    });
+  } else {
+    for ( f in frames ) {
+      console.log(`Sending a frame ${f.slice(0, 6)}`);
+      soc.send(f, argv.p, argv.a, (err) => {
+        if (err)
+          console.log(`send error: ${err}`);
+      });
+      count++;
+    }
+  }
 
   // console.log('Finished', y, process.hrtime(begin));
 }
@@ -107,4 +135,5 @@ doit();
 process.on('exit', () => {
   var totalTime = process.hrtime(begin);
   console.log(totalTime[0] + "." + totalTime[1]);
+  if (!argv.rio) soc.close();
 });

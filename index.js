@@ -48,12 +48,15 @@ function UdpPort(options, cb, packetSize, recvMinPackets, sendMinPackets) {
     rioSendMinPackets = arguments[curArg++];
   }
 
+  this.isBound = false;
+  this.bindAddress = { port: 0, address: '' };
+
   this.udpPortAdon = new netAdon.UdpPort(optionsObj, rioPacketSize, rioRecvMinPackets, rioSendMinPackets,
   (err, data) => {
     if (err)
       this.emit('error', err);
     else if (data)
-      this.emit('message', data);
+      this.emit('message', data, this.bindAddress);
     else
       this.emit('close');
   },
@@ -63,7 +66,6 @@ function UdpPort(options, cb, packetSize, recvMinPackets, sendMinPackets) {
   if (typeof rioCb === 'function')
     this.on('message', rioCb);
 
-  this.isBound = false;
   EventEmitter.call(this);
 }
 

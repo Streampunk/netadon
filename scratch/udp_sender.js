@@ -117,7 +117,6 @@ function sendFrame(y) {
     });
   } else {
     for ( f in frames ) {
-      console.log(`Sending a frame ${f.slice(0, 6)}`);
       soc.send(f, argv.p, argv.a, (err) => {
         if (err)
           console.log(`send error: ${err}`);

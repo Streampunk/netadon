@@ -1,6 +1,6 @@
 {
   "name": "netadon",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Optimised UDP networking addon",
   "main": "index.js",
   "scripts": {

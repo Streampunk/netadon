@@ -32,7 +32,8 @@ class iProcess {
 public:
   virtual ~iProcess() {}  
   virtual void doProcess (std::shared_ptr<iProcessData> processData, std::string &errStr, 
-                          tBufVec &bufVec, uint32_t &port, std::string &addrStr) = 0;
+                          tBufVec &bufVec, bool &recvArray,
+                          uint32_t &port, std::string &addrStr) = 0;
 };
 
 } // namespace streampunk

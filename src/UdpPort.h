@@ -30,10 +30,11 @@ public:
   static NAN_MODULE_INIT(Init);
 
   // iProcess
-  void doProcess (std::shared_ptr<iProcessData> processData, std::string &errStr, tBufVec &bufVec, uint32_t &port, std::string &addrStr);
+  void doProcess (std::shared_ptr<iProcessData> processData, std::string &errStr, 
+                  tBufVec &bufVec, bool &recvArray, uint32_t &port, std::string &addrStr);
 
 private:
-  explicit UdpPort(std::string ipType, bool reuseAddr, uint32_t packetSize, uint32_t recvMinPackets, uint32_t sendMinPackets,
+  explicit UdpPort(std::string ipType, bool reuseAddr, bool recvArray, uint32_t packetSize, uint32_t recvMinPackets, uint32_t sendMinPackets,
                    Nan::Callback *portCallback, Nan::Callback *callback);
   ~UdpPort();
   void listenLoop();
@@ -63,13 +64,20 @@ private:
           reuseAddr = true;
       }
 
+      bool recvArray = false;
+      v8::Local<v8::String> recvArrayStr = Nan::New<v8::String>("receiveArray").ToLocalChecked();
+      if (Nan::Has(options, recvArrayStr).FromJust()) {
+        if (Nan::True() == (Nan::To<v8::Boolean>(Nan::Get(options, recvArrayStr).ToLocalChecked()).ToLocalChecked()))
+          recvArray = true;
+      }
+
       uint32_t packetSize = Nan::To<uint32_t>(info[1]).FromJust();
       uint32_t recvMinPackets = Nan::To<uint32_t>(info[2]).FromJust();
       uint32_t sendMinPackets = Nan::To<uint32_t>(info[3]).FromJust();
       Nan::Callback *portCallback = new Nan::Callback(v8::Local<v8::Function>::Cast(info[4]));
       Nan::Callback *callback = new Nan::Callback(v8::Local<v8::Function>::Cast(info[5]));
       try {
-        UdpPort *obj = new UdpPort(ipType, reuseAddr, packetSize, recvMinPackets, sendMinPackets, portCallback, callback);
+        UdpPort *obj = new UdpPort(ipType, reuseAddr, recvArray, packetSize, recvMinPackets, sendMinPackets, portCallback, callback);
         obj->Wrap(info.This());
         info.GetReturnValue().Set(info.This());
       }
@@ -99,6 +107,7 @@ private:
   static NAN_METHOD(Send);
   static NAN_METHOD(Close);
 
+  bool mRecvArray;
   MyWorker *mWorker;
   std::shared_ptr<iNetworkDriver> mNetwork;
   std::thread mListenThread;

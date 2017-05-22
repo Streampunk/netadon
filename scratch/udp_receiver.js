@@ -19,8 +19,10 @@ var argv = require('yargs')
   .default('p', 6789)
   .default('a', '234.5.6.7')
   .default('rio', true)
+  .default('arr', false)
   .number('p')
   .boolean('rio')
+  .boolean('arr')
   .usage('Receive a test stream over UDP, counting the number of dropped packets.\n' +
     'Usage: $0 ')
   .help()
@@ -28,13 +30,14 @@ var argv = require('yargs')
   .describe('p', 'Port of multicast group to join.')
   .describe('i', 'Multicast interface card.')
   .describe('rio', 'Use Windows RIO for acceleration.')
+  .describe('arr', 'Windows RIO Only - receive arrays of packets.')
   .argv;
 
 process.env.UV_THREADPOOL_SIZE = 42;
 
 var udpPort = (argv.rio) ? netadon : dgram;
 
-var soc = udpPort.createSocket('udp4');
+var soc = udpPort.createSocket({ type:'udp4', reuseAddr:false, receiveArray:argv.arr });
 soc.on('error', (err) => {
   console.log(`server error: ${err}`);
 });
@@ -55,15 +58,23 @@ var pktCount = 0;
 var seq = -1;
 var discount = 0;
 soc.on('message', (msg, rinfo) => {
-  if (1440 != msg.length)
-    console.log(msg.length);
-  var pktSeq = msg.readInt32LE(2);
-  if (pktSeq - seq > 1) {
-    // console.log(`Discontinuity ${seq.toString(16)}->${pktSeq.toString(16)}`);
-    discount += pktSeq - seq - 1;
+  let numPackets = 1;
+  if (argv.arr)
+    numPackets = msg.length;
+  var pkt = msg
+  for (let p=0; p<numPackets; ++p) {
+    if (argv.arr)
+      pkt = msg[p];
+    if (1440 != pkt.length)
+      console.log(pkt.length);
+    var pktSeq = pkt.readInt32LE(2);
+    if (pktSeq - seq > 1) {
+      // console.log(`Discontinuity ${seq.toString(16)}->${pktSeq.toString(16)}`);
+      discount += pktSeq - seq - 1;
+    }
+    seq = pktSeq;
+    pktCount++;
   }
-  seq = pktSeq;
-  pktCount++;
 });
 
 var prev = -1;

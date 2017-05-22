@@ -65,9 +65,11 @@ public:
   ~UdpPortCloseProcessData() {}
 };
 
-UdpPort::UdpPort(std::string ipType, bool reuseAddr, uint32_t packetSize, uint32_t recvMinPackets, uint32_t sendMinPackets, 
+UdpPort::UdpPort(std::string ipType, bool reuseAddr, bool recvArray, uint32_t packetSize, 
+                 uint32_t recvMinPackets, uint32_t sendMinPackets, 
                  Nan::Callback *portCallback, Nan::Callback *callback) 
-  : mWorker(new MyWorker(callback, portCallback)),
+  : mRecvArray(recvArray),
+    mWorker(new MyWorker(callback, portCallback)),
     mNetwork(NetworkFactory::createNetwork(ipType, reuseAddr, packetSize, recvMinPackets, sendMinPackets)),
     mListenThread(std::thread(&UdpPort::listenLoop, this)) {
   AsyncQueueWorker(mWorker);
@@ -92,12 +94,14 @@ void UdpPort::listenLoop() {
 }
 
 // iProcess
-void UdpPort::doProcess (std::shared_ptr<iProcessData> processData, std::string &errStr, tBufVec &bufVec, uint32_t &port, std::string &addrStr) {
+void UdpPort::doProcess (std::shared_ptr<iProcessData> processData, std::string &errStr, 
+                         tBufVec &bufVec, bool &recvArray, uint32_t &port, std::string &addrStr) {
   try {
     std::shared_ptr<UdpPortProcessData> upd = std::dynamic_pointer_cast<UdpPortProcessData>(processData);
     if (upd) {
       errStr = upd->errStr();
       bufVec = upd->bufVec();
+      recvArray = mRecvArray;
     }
 
     std::shared_ptr<UdpPortBindProcessData> ubpd = std::dynamic_pointer_cast<UdpPortBindProcessData>(processData);

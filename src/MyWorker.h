@@ -98,7 +98,7 @@ private:
     while (mActive) {
       std::shared_ptr<WorkParams> wp = mWorkQueue.dequeue();
       if (wp->mProcess)
-        wp->mProcess->doProcess(wp->mProcessData, wp->mErrStr, wp->mBufVec, wp->mPort, wp->mAddrStr);
+        wp->mProcess->doProcess(wp->mProcessData, wp->mErrStr, wp->mBufVec, wp->mRecvArray, wp->mPort, wp->mAddrStr);
       else
         mActive = false;
       mDoneQueue.enqueue(wp);
@@ -132,12 +132,28 @@ private:
           wp->mCallback->Call(1, argv);
         }
       }
-      else for (tBufVec::const_iterator it = wp->mBufVec.begin(); it != wp->mBufVec.end(); ++it) {
-        std::shared_ptr<Memory> resultMem = *it;
-        outstandingAllocs.insert(make_pair((char*)resultMem->buf(), resultMem));
-        Nan::MaybeLocal<v8::Object> maybeBuf = Nan::NewBuffer((char*)resultMem->buf(), resultMem->numBytes(), freeAllocCb, 0);
-        Local<Value> argv[] = { Nan::Null(), maybeBuf.ToLocalChecked() };
-        mProgressCallback->Call(2, argv);
+      else {
+        uint32_t i = 0;
+        Local<Array> recvBufs;
+        if (wp->mRecvArray)
+          recvBufs = Nan::New<Array>((int)wp->mBufVec.size());
+
+        for (tBufVec::const_iterator it = wp->mBufVec.begin(); it != wp->mBufVec.end(); ++it) {
+          std::shared_ptr<Memory> resultMem = *it;
+          outstandingAllocs.insert(make_pair((char*)resultMem->buf(), resultMem));
+          Nan::MaybeLocal<Object> maybeBuf = Nan::NewBuffer((char*)resultMem->buf(), resultMem->numBytes(), freeAllocCb, 0);
+
+          if (wp->mRecvArray)
+            recvBufs->Set(Nan::GetCurrentContext(), i++, maybeBuf.ToLocalChecked());
+          else {
+            Local<Value> argv[] = { Nan::Null(), maybeBuf.ToLocalChecked() };
+            mProgressCallback->Call(2, argv);
+          }
+        }
+        if (wp->mRecvArray) {
+          Local<Value> argv[] = { Nan::Null(), recvBufs };
+          mProgressCallback->Call(2, argv);
+        }
       }
 
       if (!wp->mProcess && !mActive) {
@@ -160,7 +176,7 @@ private:
   Nan::Callback *mProgressCallback;
   struct WorkParams {
     WorkParams(std::shared_ptr<iProcessData> processData, iProcess *process, Nan::Callback *callback)
-      : mProcessData(processData), mProcess(process), mCallback(callback), mPort(0) {}
+      : mProcessData(processData), mProcess(process), mCallback(callback), mRecvArray(false), mPort(0) {}
     ~WorkParams() { delete mCallback; }
 
     std::shared_ptr<iProcessData> mProcessData;
@@ -168,6 +184,7 @@ private:
     Nan::Callback *mCallback;
     std::string mErrStr;
     tBufVec mBufVec; 
+    bool mRecvArray;
     uint32_t mPort;
     std::string mAddrStr;
   };

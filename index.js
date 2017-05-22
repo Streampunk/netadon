@@ -25,7 +25,7 @@ const EventEmitter = require('events');
 
 function UdpPort(options, cb, packetSize, recvMinPackets, sendMinPackets) {
   var curArg = 0;
-  var optionsObj = { type:'udp4', reuseAddr:false };
+  var optionsObj = { type:'udp4', reuseAddr:false, receiveArray:false };
   if (typeof arguments[curArg] === 'string') {
     optionsObj.type = arguments[curArg];
   } else if (typeof arguments[curArg] === 'object') {

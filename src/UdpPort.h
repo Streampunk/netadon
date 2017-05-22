@@ -41,14 +41,14 @@ private:
 
   static NAN_METHOD(New) {
     if (info.IsConstructCall()) {
-      if (info.Length() != 6)
-        return Nan::ThrowError("UdpPort constructor expects 6 arguments");
+      if (info.Length() != 3)
+        return Nan::ThrowError("UdpPort constructor expects 3 arguments");
       if (!info[0]->IsObject())
         return Nan::ThrowError("UdpPort constructor expects an object as the first parameter");
-      if (!info[4]->IsFunction())
-        return Nan::ThrowError("UdpPort constructor requires a valid callback as the fifth parameter");
-      if (!info[5]->IsFunction())
-        return Nan::ThrowError("UdpPort constructor requires a valid callback as the sixth parameter");
+      if (!info[1]->IsFunction())
+        return Nan::ThrowError("UdpPort constructor requires a valid callback as the second parameter");
+      if (!info[2]->IsFunction())
+        return Nan::ThrowError("UdpPort constructor requires a valid callback as the third parameter");
 
       v8::Local<v8::Object> options = v8::Local<v8::Object>::Cast(info[0]);
       v8::Local<v8::String> typeStr = Nan::New<v8::String>("type").ToLocalChecked();
@@ -71,11 +71,23 @@ private:
           recvArray = true;
       }
 
-      uint32_t packetSize = Nan::To<uint32_t>(info[1]).FromJust();
-      uint32_t recvMinPackets = Nan::To<uint32_t>(info[2]).FromJust();
-      uint32_t sendMinPackets = Nan::To<uint32_t>(info[3]).FromJust();
-      Nan::Callback *portCallback = new Nan::Callback(v8::Local<v8::Function>::Cast(info[4]));
-      Nan::Callback *callback = new Nan::Callback(v8::Local<v8::Function>::Cast(info[5]));
+      uint32_t packetSize = 1500;
+      v8::Local<v8::String> packetSizeStr = Nan::New<v8::String>("packetSize").ToLocalChecked();
+      if (Nan::Has(options, packetSizeStr).FromJust())
+        packetSize = Nan::To<uint32_t>(Nan::Get(options, packetSizeStr).ToLocalChecked()).FromJust();
+
+      uint32_t recvMinPackets = 16384;
+      v8::Local<v8::String> recvMinPacketsStr = Nan::New<v8::String>("recvMinPackets").ToLocalChecked();
+      if (Nan::Has(options, recvMinPacketsStr).FromJust())
+        recvMinPackets = Nan::To<uint32_t>(Nan::Get(options, recvMinPacketsStr).ToLocalChecked()).FromJust();
+
+      uint32_t sendMinPackets = 16384;
+      v8::Local<v8::String> sendMinPacketsStr = Nan::New<v8::String>("sendMinPackets").ToLocalChecked();
+      if (Nan::Has(options, sendMinPacketsStr).FromJust())
+        sendMinPackets = Nan::To<uint32_t>(Nan::Get(options, sendMinPacketsStr).ToLocalChecked()).FromJust();
+
+      Nan::Callback *portCallback = new Nan::Callback(v8::Local<v8::Function>::Cast(info[1]));
+      Nan::Callback *callback = new Nan::Callback(v8::Local<v8::Function>::Cast(info[2]));
       try {
         UdpPort *obj = new UdpPort(ipType, reuseAddr, recvArray, packetSize, recvMinPackets, sendMinPackets, portCallback, callback);
         obj->Wrap(info.This());
@@ -85,8 +97,8 @@ private:
         return Nan::ThrowError(e.what());
       }
     } else {
-      const int argc = 6;
-      v8::Local<v8::Value> argv[] = { info[0], info[1], info[2], info[3], info[4], info[5] };
+      const int argc = 3;
+      v8::Local<v8::Value> argv[] = { info[0], info[1], info[2] };
       v8::Local<v8::Function> cons = Nan::New(constructor());
       info.GetReturnValue().Set(cons->NewInstance(Nan::GetCurrentContext(), argc, argv).ToLocalChecked());
     }

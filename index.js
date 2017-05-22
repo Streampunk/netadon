@@ -25,7 +25,7 @@ const EventEmitter = require('events');
 
 function UdpPort(options, cb, packetSize, recvMinPackets, sendMinPackets) {
   var curArg = 0;
-  var optionsObj = { type:'udp4', reuseAddr:false, receiveArray:false };
+  var optionsObj = { type:'udp4', reuseAddr:false, receiveArray:false, packetSize:1500, recvMinPackets:16384, sendMinPackets:16384 };
   if (typeof arguments[curArg] === 'string') {
     optionsObj.type = arguments[curArg];
   } else if (typeof arguments[curArg] === 'object') {
@@ -34,25 +34,15 @@ function UdpPort(options, cb, packetSize, recvMinPackets, sendMinPackets) {
   ++curArg;
 
   var rioCb;
-  var rioPacketSize = 1500;
-  var rioRecvMinPackets = 16384;
-  var rioSendMinPackets = 16384;
-
   if (typeof arguments[curArg] === 'function') {
     rioCb = arguments[curArg];
     ++curArg;
-  }
-  if (typeof arguments[curArg] === 'number') {
-    rioPacketSize = arguments[curArg++];
-    rioRecvMinPackets = arguments[curArg++];
-    rioSendMinPackets = arguments[curArg++];
   }
 
   this.isBound = false;
   this.bindAddress = { port: 0, address: '' };
 
-  this.udpPortAdon = new netAdon.UdpPort(optionsObj, rioPacketSize, rioRecvMinPackets, rioSendMinPackets,
-  (err, data) => {
+  this.udpPortAdon = new netAdon.UdpPort(optionsObj, (err, data) => {
     if (err)
       this.emit('error', err);
     else if (data)

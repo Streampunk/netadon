@@ -16,19 +16,24 @@ Node.js addons use [libuv](http://libuv.org/) which by default supports up to 4 
 ## Using netadon
 
 To use netadon in your own application, `require` the module then create ports as required.
-The functions are intended to follow the interface of the Node.js dgram module where possible.  There are some differences but it should be straightforward to test with either implementation   
+The functions are intended to follow the interface of the Node.js dgram module where possible.  There are some differences but it should be straightforward to test with either implementation.
+The options argument in socket create has added optional fields:
+- receiveArray - When this is set to true, the message event will return an array containing multiple buffers that have been received.
+- packetSize - The number of bytes in a send packet
+- recvMinPackets - The memory to pre-allocate for receiving packets from the network
+- sendMinPackets - The memory to pre-allocate for queuing packets to be sent to the network
 
 ```javascript
 var netadon = require('netadon');
-var udpPort = netadon.createSocket('udp4', packetSize, numPacketsRecv, numPacketsSend);
+var udpPort = netadon.createSocket({type:'udp4', reuseAddr:false, receiveArray:false, packetSize:1500, recvMinPackets:16384, sendMinPackets:16384);
 
 udpPort.on('error', (err) => {
   console.log(`server error: ${err}`);
   udpPort.close();
 });
 
-udpPort.on('message', (data) => {
-  console.log(`server data: ${data.length}`);
+udpPort.on('message', (data, rinfo) => {
+  console.log(`server data: ${data.length} from ${rinfo.address}:${rinfo.port}`);
 });
 
 udpPort.on('listening', () => {

@@ -19,6 +19,7 @@
 #include "Memory.h"
 #include "iNetworkDriver.h"
 #include "NetworkFactory.h"
+#include <windows.h>
 
 using namespace v8;
 
@@ -26,7 +27,7 @@ namespace streampunk {
 
 class UdpPortProcessData : public iProcessData {
 public:
-  UdpPortProcessData(const std::string &errStr, const tBufVec &bufVec) 
+  UdpPortProcessData(const std::string &errStr, const tBufVec &bufVec)
     : mErrStr(errStr), mBufVec(bufVec) {}
   ~UdpPortProcessData() {}
 
@@ -50,7 +51,7 @@ public:
 
 class UdpPortSendProcessData : public iProcessData {
 public:
-  UdpPortSendProcessData(const tUIntVec &sendVec, uint32_t port, const std::string &addrStr) 
+  UdpPortSendProcessData(const tUIntVec &sendVec, uint32_t port, const std::string &addrStr)
     : mSendVec(sendVec), mPort(port), mAddrStr(addrStr) {}
   ~UdpPortSendProcessData() {}
 
@@ -65,9 +66,9 @@ public:
   ~UdpPortCloseProcessData() {}
 };
 
-UdpPort::UdpPort(std::string ipType, bool reuseAddr, bool recvArray, uint32_t packetSize, 
-                 uint32_t recvMinPackets, uint32_t sendMinPackets, 
-                 Nan::Callback *portCallback, Nan::Callback *callback) 
+UdpPort::UdpPort(std::string ipType, bool reuseAddr, bool recvArray, uint32_t packetSize,
+                 uint32_t recvMinPackets, uint32_t sendMinPackets,
+                 Nan::Callback *portCallback, Nan::Callback *callback)
   : mRecvArray(recvArray),
     mWorker(new MyWorker(callback, portCallback)),
     mNetwork(NetworkFactory::createNetwork(ipType, reuseAddr, packetSize, recvMinPackets, sendMinPackets)),
@@ -78,6 +79,14 @@ UdpPort::~UdpPort() {}
 
 void UdpPort::listenLoop() {
   bool active = true;
+
+  if (!SetPriorityClass(GetCurrentProcess(), REALTIME_PRIORITY_CLASS)) {
+    printf("Failed to set the class priority to real time.");
+  }
+
+  if (!SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL)) {
+    printf("Failed to set thread priority to time critical.");
+  }
 
   while (active) {
     std::string errStr;
@@ -94,7 +103,7 @@ void UdpPort::listenLoop() {
 }
 
 // iProcess
-void UdpPort::doProcess (std::shared_ptr<iProcessData> processData, std::string &errStr, 
+void UdpPort::doProcess (std::shared_ptr<iProcessData> processData, std::string &errStr,
                          tBufVec &bufVec, bool &recvArray, uint32_t &port, std::string &addrStr) {
   try {
     std::shared_ptr<UdpPortProcessData> upd = std::dynamic_pointer_cast<UdpPortProcessData>(processData);
@@ -263,7 +272,7 @@ NAN_METHOD(UdpPort::Send) {
       bufLen = length;
     }
     bufVec.push_back(Memory::makeNew(sendBuf, bufLen));
-  } 
+  }
 
   UdpPort *obj = Nan::ObjectWrap::Unwrap<UdpPort>(info.Holder());
   try {

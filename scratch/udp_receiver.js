@@ -62,6 +62,7 @@ soc.on('message', (msg, rinfo) => {
   let numPackets = 1;
   if (argv.arr)
     numPackets = msg.length;
+  if (pktCount % 1000 === 0) console.log(numPackets);
   var pkt = msg
   for (let p=0; p<numPackets; ++p) {
     if (argv.arr)

@@ -35,7 +35,7 @@ struct EXTENDED_RIO_BUF : public RIO_BUF
 };
 
 std::function<uint32_t(uint32_t,uint32_t)> gcd = [&](uint32_t m, uint32_t n) {
-  if (m<n) 
+  if (m<n)
     return gcd(n,m);
   uint32_t remainder(m%n);
   if (0 == remainder)
@@ -47,15 +47,15 @@ class RioException : public std::exception {
 public:
   RioException(std::string msg, int err) {
     char *lpMsgBuf;
-    FormatMessage( 
+    FormatMessage(
       FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-      NULL, err, 
+      NULL, err,
       MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), // Default language
       (LPTSTR)&lpMsgBuf,
       0, NULL);
-    mMsg = msg + " failed - (" + std::to_string(err) + ") " + std::string(lpMsgBuf);     
+    mMsg = msg + " failed - (" + std::to_string(err) + ") " + std::string(lpMsgBuf);
     LocalFree(lpMsgBuf);
-  }  
+  }
   const char *what() const throw()  { return mMsg.c_str(); }
 
 private:
@@ -64,12 +64,12 @@ private:
 
 
 RioNetwork::RioNetwork(std::string ipType, bool reuseAddr, uint32_t packetSize, uint32_t recvMinPackets, uint32_t sendMinPackets)
-  : mPacketSize(packetSize), 
-    mRecvNumBufs(CalcNumBuffers(packetSize, recvMinPackets)), 
-    mSendNumBufs(CalcNumBuffers(packetSize, sendMinPackets)), 
-    mAddrNumBufs(CalcNumBuffers(addrPktSize, mSendNumBufs)), 
+  : mPacketSize(packetSize),
+    mRecvNumBufs(CalcNumBuffers(packetSize, recvMinPackets)),
+    mSendNumBufs(CalcNumBuffers(packetSize, sendMinPackets)),
+    mAddrNumBufs(CalcNumBuffers(addrPktSize, mSendNumBufs)),
     mSendIndex(0), mAddrIndex(0),
-    mSocket(INVALID_SOCKET), mIOCP(INVALID_HANDLE_VALUE), mCQ(RIO_INVALID_CQ), mRQ(RIO_INVALID_RQ), 
+    mSocket(INVALID_SOCKET), mIOCP(INVALID_HANDLE_VALUE), mCQ(RIO_INVALID_CQ), mRQ(RIO_INVALID_RQ),
     mRecvBuffID(RIO_INVALID_BUFFERID), mRecvBufs(NULL),
     mSendBuffID(RIO_INVALID_BUFFERID), mSendBufs(NULL),
     mAddrBuffID(RIO_INVALID_BUFFERID), mAddrBufs(NULL),
@@ -77,7 +77,7 @@ RioNetwork::RioNetwork(std::string ipType, bool reuseAddr, uint32_t packetSize, 
   try {
     if (ipType.compare("udp4"))
       throw std::runtime_error("Supports udp4 network only");
-    
+
     InitialiseWinsock();
     InitialiseRIO();
 
@@ -106,9 +106,9 @@ RioNetwork::~RioNetwork() {
   VirtualFree(mRecvBuff->buf(), 0, MEM_RELEASE);
   VirtualFree(mSendBuff->buf(), 0, MEM_RELEASE);
   VirtualFree(mAddrBuff->buf(), 0, MEM_RELEASE);
-  delete[] mRecvBufs;  
-  delete[] mSendBufs;  
-  delete[] mAddrBufs;  
+  delete[] mRecvBufs;
+  delete[] mSendBufs;
+  delete[] mAddrBufs;
   WSACleanup();
 }
 
@@ -212,7 +212,7 @@ void RioNetwork::Bind(uint32_t &port, std::string &addrStr) {
     port = ntohs(addr.sin_port);
 
     uint32_t addrSize = 16;
-    addrStr.resize(addrSize); 
+    addrStr.resize(addrSize);
     inet_ntop(AF_INET, (void*)&addr.sin_addr, (PSTR)addrStr.data(), addrSize);
     addrStr.resize(strlen(addrStr.c_str()));
   } catch (RioException& err) {
@@ -254,7 +254,7 @@ void RioNetwork::Send(const tUIntVec& sendVec, uint32_t port, std::string addrSt
   memset(mAddrBuff->buf() + pAddrBuf->Offset, 0, addrPktSize);
   if (memcpy_s(mAddrBuff->buf() + pAddrBuf->Offset, addrPktSize, &addr.sin_family, sizeof(SOCKADDR_IN)))
     throw std::runtime_error("memcpy_s failed");
-  
+
   try {
     for (tUIntVec::const_iterator it = sendVec.begin(); it != sendVec.end(); ++it) {
       EXTENDED_RIO_BUF *pBuf = &mSendBufs[*it];
@@ -296,7 +296,7 @@ void RioNetwork::Close() {
 }
 
 bool RioNetwork::processCompletions(std::string &errStr, tBufVec &bufVec) {
-  const DWORD RIO_MAX_RESULTS = 1000;
+  const DWORD RIO_MAX_RESULTS = 4000;
 
   RIORESULT results[RIO_MAX_RESULTS];
   memset(results, 0, sizeof(results));
@@ -312,7 +312,7 @@ bool RioNetwork::processCompletions(std::string &errStr, tBufVec &bufVec) {
     OVERLAPPED *pOverlapped = 0;
     if (!::GetQueuedCompletionStatus(mIOCP, &numBytes, &completionKey, &pOverlapped, INFINITE))
       throw RioException("GetQueuedCompletionStatus", GetLastError());
-  
+
     if (0 == completionKey)
       return true;
 
@@ -372,7 +372,7 @@ void RioNetwork::InitialiseRIO() {
   GUID functionTableId = WSAID_MULTIPLE_RIO;
   DWORD dwBytes = 0;
   bool ok = true;
-  if (0 != WSAIoctl(mSocket, SIO_GET_MULTIPLE_EXTENSION_FUNCTION_POINTER, &functionTableId, sizeof(GUID), 
+  if (0 != WSAIoctl(mSocket, SIO_GET_MULTIPLE_EXTENSION_FUNCTION_POINTER, &functionTableId, sizeof(GUID),
     (void**)&mRio, sizeof(mRio), &dwBytes, 0, 0))
     throw RioException("WSAIoctl", WSAGetLastError());
 }
@@ -420,7 +420,7 @@ void RioNetwork::InitialiseBuffer(uint32_t packetBytes, uint32_t numBufs, std::s
   buffID = mRio.RIORegisterBuffer(reinterpret_cast<PCHAR>(buff->buf()), buff->numBytes());
   if (RIO_INVALID_BUFFERID == buffID)
     throw RioException("RIORegisterBuffer", WSAGetLastError());
-  
+
   DWORD offset = 0;
   bufs = new EXTENDED_RIO_BUF[numBufs];
   for (uint32_t i = 0; i < numBufs; ++i) {

@@ -25,7 +25,8 @@ var argv = require('yargs')
   .default('s', 40)
   .default('ttl', 128)
   .default('b', 1440)
-  .number(['p', 'f', 'n', 's', 'ttl', 'b'])
+  .default('m', 16384)
+  .number(['p', 'f', 'n', 's', 'ttl', 'b', 'm'])
   .boolean('rio')
   .usage('Send a test stream over UDP, counting the number of dropped packets.\n' +
     'Usage: $0 ')
@@ -39,6 +40,7 @@ var argv = require('yargs')
   .describe('ttl', 'Multicsat TTL.')
   .describe('f', 'Bytes per frame - default is 1080i25 10-bit.')
   .describe('b', 'Bytes per packet.')
+  .describe('m', 'How many send packets to reserve memory for.')
   .example('$0 -f 2304000 -i 10.11.12.13 -s 16.68333 for 720p60')
   .example('$0 -f 829440 -i 10.11.12.13 for 576i25')
   .argv;
@@ -50,7 +52,7 @@ var udpPort = (argv.rio) ? netadon : dgram;
 var data = fs.readFileSync('./essence/frame3.pgrp');
 var frame = Buffer.concat([data, data, data, data]).slice(0, argv.f);
 
-var soc = udpPort.createSocket('udp4');
+var soc = udpPort.createSocket({ type:'udp4', reuseAddr:false, sendMinPackets:argv.m });
 
 soc.on('error', (err) => {
   console.error(`server error: ${err}`);

@@ -20,9 +20,9 @@ var argv = require('yargs')
   .default('a', '234.5.6.7')
   .default('rio', true)
   .default('arr', false)
-  .number('p')
-  .boolean('rio')
-  .boolean('arr')
+  .default('m', 16384)
+  .number('p', 'm')
+  .boolean('rio', 'arr')
   .usage('Receive a test stream over UDP, counting the number of dropped packets.\n' +
     'Usage: $0 ')
   .help()
@@ -31,13 +31,14 @@ var argv = require('yargs')
   .describe('i', 'Multicast interface card.')
   .describe('rio', 'Use Windows RIO for acceleration.')
   .describe('arr', 'Windows RIO Only - receive arrays of packets.')
+  .describe('m', 'How many receive packets to reserve memory for.')
   .argv;
 
 process.env.UV_THREADPOOL_SIZE = 42;
 
 var udpPort = (argv.rio) ? netadon : dgram;
 
-var soc = udpPort.createSocket({ type:'udp4', reuseAddr:false, receiveArray:argv.arr });
+var soc = udpPort.createSocket({ type:'udp4', reuseAddr:false, receiveArray:argv.arr, recvMinPackets:argv.m });
 soc.on('error', (err) => {
   console.log(`server error: ${err}`);
 });

@@ -66,12 +66,12 @@ server.on('listening', () => {
   console.log(`Gonzales HTTPS server listining on port ${argv.p}.`);
 });
 
-var consPerTen = 0;
+var connsPerTen = 0;
 var date = () => { return new Date().toISOString(); }
 server.on('connection', (s) => {
   connsPerTen++;
   if (connsPerTen < 10) {
-    console.log(`${date()}: Gonzales HTTP server new connection ${s.address().address}.`);
+    console.log(`${date()}: Gonzales HTTPS server new connection ${s.address().address}.`);
   } else if (connsPerTen === 10) {
     console.log('No more connection messages until 10 seconds has passed.');
   }

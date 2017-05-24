@@ -66,11 +66,23 @@ server.on('listening', () => {
   console.log(`Gonzales HTTPS server listining on port ${argv.p}.`);
 });
 
+var consPerTen = 0;
 var date = () => { return new Date().toISOString(); }
 server.on('connection', (s) => {
-  console.log(`${date()}: Gonzales HTTPS server new connection ${s.address().address}.`);
+  if (connsPerTen < 10) {
+    setImmediate(() => {
+      console.log(`${date()}: Gonzales HTTP server new connection ${s.address().address}.`);
+      connsPerTen++;
+    });
+  } else {
+    setImmediate(() => {
+      console.log('No more connection messages until 10 seconds has passed.');
+    });
+  }
   s.setNoDelay(argv.N);
   netadon.setSocketRecvBuffer(s, argv.b);
   netadon.setSocketSendBuffer(s, argv.b);
 });
 server.on('error', console.error);
+
+setInterval(() => { connsPerTen = 0; }, 10000);

@@ -53,7 +53,10 @@ var startTime = process.hrtime();
 
 app.post('/essence', function (req, res) {
   if (pushCount === 0) startTime = process.hrtime();
-  console.log(pushCount++, process.hrtime(startTime), req.body.length);
+  req.on('data', () => {
+    console.log(process.hrTime(startTime));
+  });
+  // console.log(pushCount++, process.hrtime(startTime), req.body.length);
   res.json({ wibble : 'wibble' });
 });
 

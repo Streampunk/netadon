@@ -14,21 +14,60 @@
 */
 
 var fs = require('fs');
+var net = require('net');
 var http = require('http');
+var netadon = require('../../netadon');
 var argv = require('yargs')
-  .default('h', 'localhost')
+  .demandOption(['h'])
   .default('p', 5432)
   .default('t', 1)
   .default('n', 100)
-  .number(['p', 'n', 't'])
+  .default('i', 100)
+  .default('f', 5184000)
+  .default('k', true)
+  .default('b', 65535)
+  .default('N', true)
+  .boolean(['k', 'N'])
+  .number(['p', 'n', 't', 'i', 'f', 'b'])
+  .help()
+  .usage('Push frames to a server via HTTP.\n' +
+    'Usage: $0 [options]')
+  .describe('h', 'Hostname to connect to.')
+  .describe('p', 'Port number to connect to.')
+  .describe('t', 'Number of parrallel connections to use.')
+  .describe('n', 'Number of frames to send.')
+  .describe('i', 'Interval between logging messages.')
+  .describe('f', 'Bytes per frame - default is 1080i25 10-bit.')
+  .describe('k', 'Use HTTP keep alive.')
+  .describe('b', 'TCP send and receive buffer sizes.')
+  .describe('N', 'Disable Nagle\'s algorithm.')
+  .example('$0 -h server -t 4 -n 1000', 'send 1000 frames on 4 threads to server')
   .argv;
 
 process.env.UV_THREADPOOL_SIZE = 42;
 
-var frame = fs.readFileSync('./essence/frame3.pgrp');
+var data = fs.readFileSync('./essence/frame3.pgrp');
+var frame = Buffer.concat([data, data, data, data]).slice(0, argv.f);
 
-function nextOne(x, tallyReq, tallyRes, total) {
+var options = {
+  keepAlive: argv.k,
+  maxSockets: 10
+};
+
+var agent = new http.Agent(options);
+agent.createConnection = function (options) {
+  var socket = net.createConnection(options);
+  socket.on('connect', () => {
+    socket.setNoDelay(argv.N);
+    netadon.setSocketRecvBuffer(socket, argv.b);
+    netadon.setSocketSendBuffer(socket, argv.b);
+  });
+  return socket;
+}
+
+function nextOne(x, tallyReq, tallyRes, total, intervalTally) {
   var options = {
+    agent: agent,
     hostname: argv.h,
     port: argv.p,
     path: '/essence',
@@ -49,10 +88,15 @@ function nextOne(x, tallyReq, tallyRes, total) {
       chunks++;
     });
     res.on('end', () => {
-      tallyRes += process.hrtime(startTime)[1]/1000000;
-      if (total % 100 === 0) console.log(x, total, tallyReq/total, tallyRes/total);
-      if (total < argv.n]) nextOne(x, tallyReq, tallyRes, total);
-      else console.log('Finished', x, total, tallyReq/total, tallyRes/total, chunks);
+      var resTime = process.hrtime(startTime)[1]/1000000;
+      tallyRes += resTime;
+      intervalTally += resTime;
+      if (total % argv.i === 0) {
+        console.log(`Thread ${x}: total = ${total}, avgReq = ${tallyReq/total}, avgRes = ${tallyRes/total}, intervalAvg = ${intervalTally/argv.i}, chunks/frame = ${chunks}`);
+        intervalTally = 0;
+      }
+      if (total < argv.n) nextOne(x, tallyReq, tallyRes, total, intervalTally);
+      else console.log(`Finished thread ${x}: total = ${total}, avgReq = ${tallyReq/total}, avgRes = ${tallyRes/total}, intervalAvg = ${intervalTally/argv.i}, chunks/frame = ${chunks}`);
     })
   });
 
@@ -65,12 +109,14 @@ function nextOne(x, tallyReq, tallyRes, total) {
   req.end();
   req.on('finish', () => {
     total++;
-    tallyReq += process.hrtime(startTime)[1]/1000000;
+    var reqTime = process.hrtime(startTime)[1]/1000000;
+    tallyReq += reqTime;
+    // intervalTally += reqTime;
     // console.log("Finished writing", x, total, process.hrtime(startTime)[1]/1000000);
     // if (total < +process.argv[3]) nextOne(x, tallyReq, tallyRes, total);
   });
 }
 
 for ( var x = 0 ; x < argv.t ; x++ ) {
-  nextOne(x, 0, 0, 0);
+  nextOne(x, 0, 0, 0, 0);
 }

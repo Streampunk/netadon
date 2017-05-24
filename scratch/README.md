@@ -27,7 +27,7 @@ The Javascript applications in this folder are designed to be self describing wh
 
 The applications are related by protocol:
 
-* `server.js`, `pull_client.js` and `push_client.js` - For testing HTTP transport.
+* `http_server.js`, `pull_client.js` and `push_client.js` - For testing HTTP transport.
 * `https_server.js`, `pull_sclient.js` and `push_sclient.js` - For testing HTTPS transport.
 * `udp_sender.js` and `udp_receiver.js` - Testing UDP transport using the [Node.JS dgram API](https://nodejs.org/dist/latest-v6.x/docs/api/dgram.html) and [Windows Registered Input/Output](https://technet.microsoft.com/en-us/library/hh997032(v=ws.11).aspx). Can be used with unicast and multicast addresses.
 
@@ -37,9 +37,9 @@ For all the tests, an actual frame of video is read into memory and sent repeate
 
 To run an HTTP pull test, first run a server:
 
-    node server.js
+    node http_server.js
 
-Assuming the server's name is `dumpty`, on another computer run:
+Assuming the hostname of the server is `dumpty`, on another computer run:
 
     node pull_client.js -h dumpty -n 1000
 

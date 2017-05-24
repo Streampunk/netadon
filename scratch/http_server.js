@@ -72,13 +72,14 @@ server.on('connection', (s) => {
   if (connsPerTen < 10) {
     setImmediate(() => {
       console.log(`${date()}: Gonzales HTTP server new connection ${s.address().address}.`);
+      connsPerTen++;
     });
-  } else {
+  } else if (connsPerTen == 10) {
     setImmediate(() => {
       console.log('No more connection messages until 10 seconds has passed.');
+      connsPerTen++;
     });
   }
-  connsPerTen++;
   s.setNoDelay(argv.N);
   netadon.setSocketRecvBuffer(s, argv.b);
   netadon.setSocketSendBuffer(s, argv.b);

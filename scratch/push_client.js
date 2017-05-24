@@ -27,8 +27,9 @@ var argv = require('yargs')
   .default('k', true)
   .default('b', 65535)
   .default('N', true)
+  .default('s', 0)
   .boolean(['k', 'N'])
-  .number(['p', 'n', 't', 'i', 'f', 'b'])
+  .number(['p', 'n', 't', 'i', 'f', 'b', 's'])
   .help()
   .usage('Push frames to a server via HTTP.\n' +
     'Usage: $0 [options]')
@@ -41,6 +42,7 @@ var argv = require('yargs')
   .describe('k', 'Use HTTP keep alive.')
   .describe('b', 'TCP send and receive buffer sizes.')
   .describe('N', 'Disable Nagle\'s algorithm.')
+  .describe('s', 'Spacing between frames, measured in miliseconds.')
   .example('$0 -h server -t 4 -n 1000', 'send 1000 frames on 4 threads to server')
   .argv;
 
@@ -65,56 +67,63 @@ agent.createConnection = function (options) {
   return socket;
 }
 
+var begin = process.hrtime();
+
 function nextOne(x, tallyReq, tallyRes, total, intervalTally) {
-  var options = {
-    agent: agent,
-    hostname: argv.h,
-    port: argv.p,
-    path: '/essence',
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/octet-stream',
-      'Content-Length': frame.length
-    }
-  };
-
-  var startTime = process.hrtime();
-
-  var req = http.request(options, (res) => {
-    var chunks = 0;
-    res.setEncoding('utf8');
-    res.on('data', (chunk) => {
-      // console.log(`BODY: ${chunk}`);
-      chunks++;
-    });
-    res.on('end', () => {
-      var resTime = process.hrtime(startTime)[1]/1000000;
-      tallyRes += resTime;
-      intervalTally += resTime;
-      if (total % argv.i === 0) {
-        console.log(`Thread ${x}: total = ${total}, avgReq = ${tallyReq/total}, avgRes = ${tallyRes/total}, intervalAvg = ${intervalTally/argv.i}, chunks/frame = ${chunks}`);
-        intervalTally = 0;
+  var diffTime = process.hrtime(begin);
+  var diff = ((total * argv.t + x) * argv.s) -
+      (diffTime[0] * 1000 + diffTime[1] / 1000000|0);
+  setTimeout(() => {
+    var options = {
+      agent: agent,
+      hostname: argv.h,
+      port: argv.p,
+      path: '/essence',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'Content-Length': frame.length
       }
-      if (total < argv.n) nextOne(x, tallyReq, tallyRes, total, intervalTally);
-      else console.log(`Finished thread ${x}: total = ${total}, avgReq = ${tallyReq/total}, avgRes = ${tallyRes/total}, intervalAvg = ${intervalTally/argv.i}, chunks/frame = ${chunks}`);
-    })
-  });
+    };
 
-  req.on('error', (e) => {
-    console.log(`problem with request: ${e.message}`);
-  });
+    var startTime = process.hrtime();
 
-  // write data to request body
-  req.write(frame);
-  req.end();
-  req.on('finish', () => {
-    total++;
-    var reqTime = process.hrtime(startTime)[1]/1000000;
-    tallyReq += reqTime;
-    // intervalTally += reqTime;
-    // console.log("Finished writing", x, total, process.hrtime(startTime)[1]/1000000);
-    // if (total < +process.argv[3]) nextOne(x, tallyReq, tallyRes, total);
-  });
+    var req = http.request(options, (res) => {
+      var chunks = 0;
+      res.setEncoding('utf8');
+      res.on('data', (chunk) => {
+        // console.log(`BODY: ${chunk}`);
+        chunks++;
+      });
+      res.on('end', () => {
+        var resTime = process.hrtime(startTime)[1]/1000000;
+        tallyRes += resTime;
+        intervalTally += resTime;
+        if (total % argv.i === 0) {
+          console.log(`Thread ${x}: total = ${total}, avgReq = ${tallyReq/total}, avgRes = ${tallyRes/total}, intervalAvg = ${intervalTally/argv.i}`);
+          intervalTally = 0;
+        }
+        if (total < argv.n) nextOne(x, tallyReq, tallyRes, total, intervalTally);
+        else console.log(`Finished thread ${x}: total = ${total}, avgReq = ${tallyReq/total}, avgRes = ${tallyRes/total}, intervalAvg = ${intervalTally/argv.i}`);
+      })
+    });
+
+    req.on('error', (e) => {
+      console.log(`problem with request: ${e.message}`);
+    });
+
+    // write data to request body
+    req.write(frame);
+    req.end();
+    req.on('finish', () => {
+      total++;
+      var reqTime = process.hrtime(startTime)[1]/1000000;
+      tallyReq += reqTime;
+      // intervalTally += reqTime;
+      // console.log("Finished writing", x, total, process.hrtime(startTime)[1]/1000000);
+      // if (total < +process.argv[3]) nextOne(x, tallyReq, tallyRes, total);
+    });
+  }, diff > 0 ? diff|0 : 0);
 }
 
 for ( var x = 0 ; x < argv.t ; x++ ) {

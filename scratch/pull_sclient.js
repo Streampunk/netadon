@@ -27,7 +27,8 @@ var argv = require('yargs')
   .default('N', true)
   .default('k', true)
   .default('i', 100)
-  .number(['p', 't', 'n', 'b', 'i'])
+  .default('s', 0)
+  .number(['p', 't', 'n', 'b', 'i', 's'])
   .boolean(['N', 'k'])
   .usage('Pull frames from a server via HTTPS.\nUsage: $0 [options]')
   .describe('h', 'Hostname to connect to.')
@@ -38,6 +39,7 @@ var argv = require('yargs')
   .describe('N', 'Disable Nagle\'s algorithm.')
   .describe('k', 'Use socket keep alive.')
   .describe('i', 'Interval between logging messages.')
+  .describe('s', 'Spacing between frames, measured in miliseconds.')
   .example('$0 -h server -t 4 -n 1000')
   .argv;
 
@@ -63,37 +65,43 @@ agent.createConnection = function (options) {
 var total = 0;
 var tally = 0;
 
+var begin = process.hrtime();
 function runNext(x, tally, total, intervalTally) {
-  var startTime = process.hrtime();
-  https.get({
-    agent: agent,
-    rejectUnauthorized : false,
-    hostname: argv.h,
-    port: argv.p,
-    path: '/essence'
-  }, (res) => {
-    var count = 0;
-    res.on('data', (x) => {
-      count++;
+  var diffTime = process.hrtime(begin);
+  var diff = ((total * argv.t + x) * argv.s) -
+      (diffTime[0] * 1000 + diffTime[1] / 1000000|0);
+  setTimeout(() => {
+    var startTime = process.hrtime();
+    https.get({
+      agent: agent,
+      rejectUnauthorized : false,
+      hostname: argv.h,
+      port: argv.p,
+      path: '/essence'
+    }, (res) => {
+      var count = 0;
+      res.on('data', (x) => {
+        count++;
+      });
+      res.on('end', () => {
+        total++;
+        var frameTime = process.hrtime(startTime)[1]/1000000;
+        tally += frameTime;
+        if (total % argv.i === 0) {
+          console.log(`Thread ${x}: total = ${total}, avg = ${tally/total}, intervalAvg = ${intervalTally/argv.i}, chunks/frame = ${count}`);
+          intervalTally = 0.0;
+        }
+        if (total < argv.n) {
+          intervalTally += frameTime;
+          runNext(x, tally, total, intervalTally);
+        } else {
+          console.log(`Finished thread ${x}: total = ${total}, avg = ${tally/total}, chunks/frame = ${count}`);
+        }
+      });
+    }).on('error', (e) => {
+      console.log(`Got error: ${e.message}`);
     });
-    res.on('end', () => {
-      total++;
-      var frameTime = process.hrtime(startTime)[1]/1000000;
-      tally += frameTime;
-      if (total % argv.i === 0) {
-        console.log(`Thread ${x}: total = ${total}, avg = ${tally/total}, intervalAvg = ${intervalTally/argv.i}, chunks/frame = ${count}`);
-        intervalTally = 0.0;
-      }
-      if (total < argv.n) {
-        intervalTally += frameTime;
-        runNext(x, tally, total, intervalTally);
-      } else {
-        console.log(`Finished thread ${x}: total = ${total}, avg = ${tally/total}, chunks/frame = ${count}`);
-      }
-    });
-  }).on('error', (e) => {
-    console.log(`Got error: ${e.message}`);
-  });
+  }, diff > 0 ? diff|0 : 0);
 }
 
 for ( var x = 0 ; x < argv.t ; x ++) {

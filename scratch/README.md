@@ -14,6 +14,14 @@ As well as comparing the protocols themselves, the scripts are designed to allow
 
 ## Installation
 
+First make sure that the parent project `netadon` is installed locally OK. From this folder:
+
+    cd ..
+    npm install
+    cd scratch
+
+You will have to have the [node-gyp](https://github.com/nodejs/node-gyp) pre-requisites installed.
+
 Having unpacked this folder, including the `essence` sub-folder, run:
 
     npm install

@@ -87,12 +87,12 @@ function runNext(x, tally, total, intervalTally) {
         total++;
         var frameTime = process.hrtime(startTime)[1]/1000000;
         tally += frameTime;
+        intervalTally += frameTime;
         if (total % argv.i === 0) {
           console.log(`Thread ${x}: total = ${total}, avg = ${tally/total}, intervalAvg = ${intervalTally/argv.i}, chunks/frame = ${count}`);
           intervalTally = 0.0;
         }
         if (total < argv.n) {
-          intervalTally += frameTime;
           runNext(x, tally, total, intervalTally);
         } else {
           console.log(`Finished thread ${x}: total = ${total}, avg = ${tally/total}, chunks/frame = ${count}`);
@@ -105,5 +105,5 @@ function runNext(x, tally, total, intervalTally) {
 }
 
 for ( var x = 0 ; x < argv.t ; x ++) {
-  runNext(x, tally, total);
+  runNext(x, tally, total, 0.0);
 }

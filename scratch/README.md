@@ -13,6 +13,8 @@ As well as comparing the protocols themselves, the scripts are designed to allow
 * pushing or pulling frames with HTTP and HTTPS;
 * using [Windows RIO](https://technet.microsoft.com/en-us/library/hh997032(v=ws.11).aspx) for UDP acceleration vs the built in [Node.JS datagram API](https://nodejs.org/dist/latest-v6.x/docs/api/dgram.html).
 
+The results of tests carried out with these scripts are being used to inform the design of the [arachnid](/Streampunk/arachnid) transport protocol for NMOS, design of the [HTTP/S support for dynamorse](/Streampunk/node-red-contrib-dynamorse-http-io) and enhance its uncompressed [RTP capability](/Streampunk/node-red-contrib-dynamorse-rtp-io).
+
 ## Installation
 
 First make sure that the parent project `netadon` is installed locally OK. From this folder:

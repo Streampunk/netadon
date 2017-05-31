@@ -7,6 +7,7 @@ As well as comparing the protocols themselves, the scripts are designed to allow
 * moving frames in series and in parallel with HTTP and HTTPS with a configurable number of parallel connections;
 * using encryption or in the clear;
 * going as fast as possible or using a specified maximum pull rate, e.g. one frame every 40ms for 1080i50;
+* trying out different payload sizes, with a default of 1080i50 but configurable to 720p60, SD, quarter frames etc.;
 * configuring TCP socket options, such as send and receive buffers and the use of Nagle's algorithm;
 * switching on and off [HTTP keep-alive](https://en.wikipedia.org/wiki/HTTP_persistent_connection);
 * pushing or pulling frames with HTTP and HTTPS;

@@ -42,7 +42,7 @@ var data = fs.readFileSync('./essence/frame3.pgrp');
 var frame = Buffer.concat([data, data, data, data]).slice(0, argv.f);
 
 var app = express();
-app.use(bp.raw({ limit : 6000000 }));
+//app.use(bp.raw({ limit : 6000000 }));
 
 app.get('/essence', function (req, res) {
   res.send(frame);
@@ -51,13 +51,23 @@ app.get('/essence', function (req, res) {
 var pushCount = 0;
 var startTime = process.hrtime();
 
-app.post('/essence', function (req, res) {
+app.put('/essence', function (req, res) {
   if (pushCount === 0) startTime = process.hrtime();
-  req.on('data', () => {
-    console.log(process.hrTime(startTime));
+  var grainData = [];
+  dCount = 0;
+  var pos = 0;
+  req.on('data', d => {
+    // console.log(process.hrtime(startTime));
+    grainData.push(d);
+    dCount++;
+    pos += d.length;
   });
-  // console.log(pushCount++, process.hrtime(startTime), req.body.length);
-  res.json({ wibble : 'wibble' });
+  req.on('end', () => {
+    // var joined = Buffer.concat(grainData, +req.headers['content-length']);
+    // console.log(pushCount++, process.hrtime(startTime), dCount,
+    //   pos, joined.length);
+    res.json({ wibble : 'wibble' });
+  });
 });
 
 var server = http.createServer(app).listen(argv.p);

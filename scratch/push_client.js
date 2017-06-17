@@ -79,7 +79,7 @@ function nextOne(x, tallyReq, tallyRes, total, intervalTally) {
       hostname: argv.h,
       port: argv.p,
       path: '/essence',
-      method: 'POST',
+      method: 'PUT',
       headers: {
         'Content-Type': 'application/octet-stream',
         'Content-Length': frame.length

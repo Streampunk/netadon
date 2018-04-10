@@ -120,16 +120,16 @@ private:
         printf("Error: %s\n", wp->mErrStr.c_str());
         
         Local<Value> argv[] = { Nan::New(wp->mErrStr.c_str()).ToLocalChecked() };
-        mProgressCallback->Call(1, argv);
+        mProgressCallback->Call(1, argv, wp->mAsyncResource);
       }
       else if (wp->mCallback) {
         if (!wp->mAddrStr.empty()) {
           Local<Value> argv[] = { Nan::Null(), Nan::New(wp->mPort), Nan::New(wp->mAddrStr).ToLocalChecked() };
-          wp->mCallback->Call(3, argv);
+          wp->mCallback->Call(3, argv, wp->mAsyncResource);
         }
         else {
           Local<Value> argv[] = { Nan::Null() };
-          wp->mCallback->Call(1, argv);
+          wp->mCallback->Call(1, argv, wp->mAsyncResource);
         }
       }
       else {
@@ -147,18 +147,18 @@ private:
             recvBufs->Set(Nan::GetCurrentContext(), i++, maybeBuf.ToLocalChecked());
           else {
             Local<Value> argv[] = { Nan::Null(), maybeBuf.ToLocalChecked() };
-            mProgressCallback->Call(2, argv);
+            mProgressCallback->Call(2, argv, wp->mAsyncResource);
           }
         }
         if (wp->mRecvArray) {
           Local<Value> argv[] = { Nan::Null(), recvBufs };
-          mProgressCallback->Call(2, argv);
+          mProgressCallback->Call(2, argv, wp->mAsyncResource);
         }
       }
 
       if (!wp->mProcess && !mActive) {
         Local<Value> argv[] = { Nan::Null() };
-        mProgressCallback->Call(1, argv);
+        mProgressCallback->Call(1, argv, wp->mAsyncResource);
 
         // notify the thread to exit
         std::unique_lock<std::mutex> lk(mMtx);
@@ -169,19 +169,25 @@ private:
   
   void HandleOKCallback() {
     Nan::HandleScope scope;
-    callback->Call(0, NULL);
+    callback->Call(0, NULL, async_resource);
   }
 
   bool mActive;
   Nan::Callback *mProgressCallback;
   struct WorkParams {
     WorkParams(std::shared_ptr<iProcessData> processData, iProcess *process, Nan::Callback *callback)
-      : mProcessData(processData), mProcess(process), mCallback(callback), mRecvArray(false), mPort(0) {}
-    ~WorkParams() { delete mCallback; }
+      : mProcessData(processData), mProcess(process), 
+        mCallback(callback), mAsyncResource(new Nan::AsyncResource("MyWorker progress")),
+        mRecvArray(false), mPort(0) {}
+    ~WorkParams() {
+      delete mCallback;
+      delete mAsyncResource;
+    }
 
     std::shared_ptr<iProcessData> mProcessData;
     iProcess *mProcess;
     Nan::Callback *mCallback;
+    Nan::AsyncResource *mAsyncResource;
     std::string mErrStr;
     tBufVec mBufVec; 
     bool mRecvArray;

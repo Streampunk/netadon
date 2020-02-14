@@ -129,8 +129,8 @@ void UdpPort::doProcess (std::shared_ptr<iProcessData> processData, std::string 
 NAN_METHOD(UdpPort::AddMembership) {
   if (info.Length() != 2)
     return Nan::ThrowError("UdpPort AddMembership expects 2 arguments");
-  String::Utf8Value mAddrStr(Nan::To<String>(info[0]).ToLocalChecked());
-  String::Utf8Value uAddrStr(Nan::To<String>(info[1]).ToLocalChecked());
+  String::Utf8Value mAddrStr(v8::Isolate::GetCurrent(), Nan::To<String>(info[0]).ToLocalChecked());
+  String::Utf8Value uAddrStr(v8::Isolate::GetCurrent(), Nan::To<String>(info[1]).ToLocalChecked());
 
   UdpPort *obj = Nan::ObjectWrap::Unwrap<UdpPort>(info.Holder());
   try {
@@ -144,8 +144,8 @@ NAN_METHOD(UdpPort::AddMembership) {
 NAN_METHOD(UdpPort::DropMembership) {
   if (info.Length() != 2)
     return Nan::ThrowError("UdpPort DropMembership expects 2 arguments");
-  String::Utf8Value mAddrStr(Nan::To<String>(info[0]).ToLocalChecked());
-  String::Utf8Value uAddrStr(Nan::To<String>(info[1]).ToLocalChecked());
+  String::Utf8Value mAddrStr(v8::Isolate::GetCurrent(), Nan::To<String>(info[0]).ToLocalChecked());
+  String::Utf8Value uAddrStr(v8::Isolate::GetCurrent(), Nan::To<String>(info[1]).ToLocalChecked());
 
   UdpPort *obj = Nan::ObjectWrap::Unwrap<UdpPort>(info.Holder());
   try {
@@ -219,7 +219,7 @@ NAN_METHOD(UdpPort::Bind) {
     return Nan::ThrowError("UdpPort Bind requires a valid callback as the third parameter");
 
   uint32_t port = Nan::To<uint32_t>(info[0]).FromJust();
-  String::Utf8Value addrStr(Nan::To<String>(info[1]).ToLocalChecked());
+  String::Utf8Value addrStr(v8::Isolate::GetCurrent(), Nan::To<String>(info[1]).ToLocalChecked());
   Local<Function> callback = Local<Function>::Cast(info[2]);
 
   UdpPort *obj = Nan::ObjectWrap::Unwrap<UdpPort>(info.Holder());
@@ -244,18 +244,18 @@ NAN_METHOD(UdpPort::Send) {
   uint32_t offset = Nan::To<uint32_t>(info[1]).FromJust();
   uint32_t length = Nan::To<uint32_t>(info[2]).FromJust();
   uint32_t port = Nan::To<uint32_t>(info[3]).FromJust();
-  String::Utf8Value addrStr(Nan::To<String>(info[4]).ToLocalChecked());
+  String::Utf8Value addrStr(v8::Isolate::GetCurrent(), Nan::To<String>(info[4]).ToLocalChecked());
   Nan::Callback *callback = new Nan::Callback(Local<Function>::Cast(info[5]));
 
   if (1 == bufArray->Length()) {
-    uint32_t buffLen = (uint32_t)node::Buffer::Length(bufArray->Get(0));
+    uint32_t buffLen = (uint32_t)node::Buffer::Length(bufArray->Get(v8::Isolate::GetCurrent()->GetCurrentContext(), 0).ToLocalChecked());
     if (offset + length > buffLen)
       return Nan::ThrowError("UdpPort Send - out of range offset/length");
   }
 
   tBufVec bufVec;
   for (uint32_t i = 0; i < bufArray->Length(); ++i) {
-    Local<Object> bufferObj = Local<Object>::Cast(bufArray->Get(i));
+    Local<Object> bufferObj = Local<Object>::Cast(bufArray->Get(v8::Isolate::GetCurrent()->GetCurrentContext(), i).ToLocalChecked());
     uint8_t *sendBuf = (uint8_t *)node::Buffer::Data(bufferObj);
     uint32_t bufLen = (uint32_t)node::Buffer::Length(bufferObj);
     if (1 == bufArray->Length()) {

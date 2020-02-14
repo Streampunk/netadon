@@ -55,7 +55,7 @@ private:
       if (!Nan::Has(options, typeStr).FromJust())
         return Nan::ThrowError("UdpPort constructor requires type string in first parameter");
 
-      v8::String::Utf8Value ipTypeUtf8(Nan::To<v8::String>(Nan::Get(options, typeStr).ToLocalChecked()).ToLocalChecked());
+      v8::String::Utf8Value ipTypeUtf8(v8::Isolate::GetCurrent(), Nan::To<v8::String>(Nan::Get(options, typeStr).ToLocalChecked()).ToLocalChecked());
       std::string ipType = *ipTypeUtf8;
       bool reuseAddr = false;
       v8::Local<v8::String> reuseStr = Nan::New<v8::String>("reuseAddr").ToLocalChecked();
